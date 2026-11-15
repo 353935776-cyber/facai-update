@@ -1,0 +1,62 @@
+{
+  "name": "xinghe-aigc",
+  "productName": "星核AIGC",
+  "version": "1.0.20",
+  "description": "星核AIGC · 漫剧创作引擎",
+  "author": "星核",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.xinghe.aigc",
+    "productName": "星核AIGC",
+    "asar": false,
+    "electronVersion": "31.7.7",
+    "electronDist": "C:/Users/Administrator/WorkBuddy/2026-10-31-11-22-47/mirrorflow/node_modules/electron/dist",
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "package.json",
+      "electron/**/*",
+      "app/**/*",
+      "tools/**/*",
+      "data/custom-instructions.json",
+      "data/local-prompts.json",
+      "data/settings.seed.json",
+      "data/update.json",
+      "!tools/gen-dev-token.cjs",
+      "!**/dev.json",
+      "!**/*.log",
+      "!**/*.bak",
+      "!**/*.bak-*",
+      "!**/*.orig-backup",
+      "!**/*.orig-backup.png"
+    ],
+    "win": {
+      "icon": "app/branding/xinghe-aigc-v3.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "星核AIGC",
+      "artifactName": "星核AIGC-安装包-${version}.exe",
+      "installerIcon": "app/branding/xinghe-aigc-v3.ico",
+      "uninstallerIcon": "app/branding/xinghe-aigc-v3.ico",
+      "installerHeaderIcon": "app/branding/xinghe-aigc-v3.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    }
+  }
+}
