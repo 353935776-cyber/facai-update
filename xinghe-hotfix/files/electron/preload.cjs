@@ -28,6 +28,7 @@ const electronAPI = {
   app: {
     updateInfo: invoke('app:updateInfo'),
     updateCheck: invoke('app:updateCheck'),
+    updateDiag: invoke('app:updateDiag'),
     updateSetUrl: invoke('app:updateSetUrl'),
     // 开发者渠道专用：主进程会校验本机标记，正式版一律拒绝
     devInfo: invoke('app:devInfo'),

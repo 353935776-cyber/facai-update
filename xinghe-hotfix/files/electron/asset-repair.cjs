@@ -6,8 +6,10 @@
  * 只带了 ID，姓名和描述是空的 —— 角色设置里显示成一串 role_dong_zhen，
  * 参考图、音色、出图都接不上；第 1 集正常、第 2 集一导入就"断"。
  *
- * 这里在启动时按「同一个作品」把所有分集里已有的角色/场景/道具资料汇总成母版，
- * 只回填「名字像 ID」或「描述为空」的字段，已有内容一个字都不改。
+ * 这里在启动时按「同一个作品」汇总别集的实体，**只回填名字**（name 像 role_xxx 时）。
+ * 描述词、图片一律不跨集回填 —— 每一集必须自己重新上传或重新提取描述词
+ * （见 stripCrossEpisodeAssets 的每集独立规则）。早期版本这里连 description 一起补，
+ * 重启一次就把别集描述灌回本集，保存时又被当成「本集原有」放行，隔离就此失效；2026-11-16 修正。
  * 幂等：重复执行不会再产生改动。
  */
 
@@ -16,7 +18,9 @@ const EXTRA_ID_RE = /^@/;
 function looksLikeId(v) {
   const s = String(v || '').trim();
   if (!s) return true;
-  return EXTRA_ID_RE.test(s) || /^(role|scene|prop|audio)_/i.test(s);
+  /* 编号的写法不止下划线：前端按拼音生成过 role-dong-zhen / ROLE_DONGZHEN，
+   * 只认 <kind>_ 会把 role-dong-zhen 当成人名留下来，界面继续显示编号。 */
+  return EXTRA_ID_RE.test(s) || /^(role|scene|prop|audio)[-_]/i.test(s);
 }
 
 /* 取两个名字里更"像人名"的那个：非 ID 优先；都像人名时取短的（"董震" 优于 "董震（青年）"） */
@@ -122,11 +126,13 @@ function repairJobs(jobs) {
           const src = k ? pool.get(k) : null;
           if (!src) return item;
           const name = looksLikeId(item.name) ? pickName(item.name, src.name) : item.name;
-          const description = pickDesc(item.description, src.description);
-          if (String(name || '') === String(item.name || '') && String(description || '') === String(item.description || '')) return item;
+          /* 只回填名字，绝不回填描述词：每一集必须自己重新上传/重新提取描述。
+           * 以前这里连 description 一起补，重启一次就把别集的描述灌回本集，
+           * 保存时又被当成「本集原有」放行 —— 隔离就此失效。 */
+          if (String(name || '') === String(item.name || '')) return item;
           changedArr = true;
           stats[kind === 'role' ? 'roles' : kind === 'scene' ? 'scenes' : 'props'] += 1;
-          return { ...item, name, description };
+          return { ...item, name };
         });
         if (changedArr) {
           sj[field] = next;
@@ -619,6 +625,476 @@ function fillAssetsFromLibrary(job, lookup) {
   return n;
 }
 
+/* ==================================================================
+ * 资产身份归一化 + 引用完整性（1.0.22，根治 role_xxx 空壳）
+ *
+ * 为什么以前修了还会犯：同一个人/场景/道具在不同链路里会拿到不同写法
+ * 的编号 —— AI 给 @role_dongzhen、前端按拼音生成 role_dong_zhen、
+ * 导入分镜写 role_dongzhen、旧数据是 @role_dong_zhen。以前所有补名逻辑
+ * 都按「字符串全等」找兄弟集，换个写法就找不到；而且只在「保存」时补，
+ * 读出来给界面用的仍是空壳；分镜里的 id 指向表里不存在的行时，界面
+ * 就直接把 id 当名字显示（红色 role_xxx）。
+ *
+ * 这里立一条不变量，读、写、启动三处都过同一个函数：
+ *   1) 本集资产表每一行都必须有「不像编号」的名字；
+ *   2) 分镜 role_ids/scene_ids/prop_ids 必须能在本集资产表里命中。
+ * 归一化键把 @、大小写、下划线/连字符差异全部抹平，因此
+ * role_dong_zhen / role_dongzhen / @role_dong_zhen 视为同一个实体。
+ * 幂等：修完再跑一遍不会产生任何改动。
+ * ================================================================== */
+const NORM_KINDS = [
+  ['role', 'updated_roles'],
+  ['scene', 'updated_scenes'],
+  ['prop', 'updated_props'],
+];
+const SHOT_REF_FIELDS = [
+  ['role', 'role_ids', 'roleIds'],
+  ['scene', 'scene_ids', 'sceneIds'],
+  ['prop', 'prop_ids', 'propIds'],
+];
+
+function bareAssetId(v) {
+  return String(v || '').trim().replace(/^@+/, '');
+}
+
+/* 归一化键：去掉 @ / 类型前缀 / 大小写 / 下划线 / 连字符 / 空格。
+ * role_dong_zhen、@role_dongzhen、ROLE-DONG-ZHEN -> dongzhen
+ * 中文名保持原样，用于「按名字找回编号」。 */
+function canonAssetKey(v) {
+  let s = bareAssetId(v).toLowerCase();
+  s = s.replace(/^(role|scene|prop|audio)[_-]?/, '');
+  return s.replace(/[^0-9a-z\u4e00-\u9fff]/g, '');
+}
+
+/* 编号的宽松正则：每个字母数字之间允许 _ - 空格，兼容所有历史写法 */
+function idLoosePattern(raw) {
+  const chars = bareAssetId(raw).replace(/[^0-9a-z]/gi, '').split('');
+  if (!chars.length) return '';
+  return chars.map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s_-]*');
+}
+
+/**
+ * 从「董震（role_dong_zhen）」「董震 ( @role_dongzhen )」这类文本里取中文名。
+ * 与编号写法无关，只要求括号里是同一个编号。
+ */
+function nameFromPromptText(text, rawId) {
+  const t = String(text || '');
+  const pat = idLoosePattern(rawId);
+  if (!t || !pat) return '';
+  const re = new RegExp(
+    `([\\u4e00-\\u9fff][\\u4e00-\\u9fff0-9A-Za-z·]{0,15})\\s*[（(]\\s*@?${pat}(?![\\w-])`,
+    'i',
+  );
+  const m = re.exec(t);
+  if (!m) return '';
+  return String(m[1]).replace(/^(角色|人物|场景|道具)/, '').trim();
+}
+
+/* 本集可用于反查名字的全部文本：分镜提示词 + 剧本正文。
+ * 刻意跳过 updated_* 资产表自身，避免「自己引用自己」的假命中。 */
+function jobPromptText(job) {
+  const parts = [JSON.stringify((job && job.storyboard_json) || {})];
+  const sj = (job && job.script_json) || {};
+  for (const [k, v] of Object.entries(sj)) {
+    if (k.startsWith('updated_')) continue;
+    parts.push(typeof v === 'string' ? v : JSON.stringify(v || ''));
+  }
+  return parts.join('\n');
+}
+
+/**
+ * 汇总「归一化编号 -> 中文名」。
+ * 名字来源优先级：本集已有名字 > 兄弟集已有名字 > 提示词里的「中文名（编号）」。
+ * 名字是身份信息，允许跨集复用；描述词与图片仍然绝不跨集。
+ */
+function collectAssetNameMap(episodes) {
+  const maps = { role: new Map(), scene: new Map(), prop: new Map() };
+  const put = (kind, key, name) => {
+    if (!kind || !key || !name || looksLikeId(name)) return;
+    const m = maps[kind];
+    if (m && !m.has(key)) m.set(key, name);
+  };
+  for (const ep of (Array.isArray(episodes) ? episodes : [])) {
+    if (!ep || typeof ep !== 'object') continue;
+    for (const [kind, field] of NORM_KINDS) {
+      for (const it of assetsOf(ep, kind)) {
+        const nm = String(it.name || it[`${kind}_name`] || '').trim();
+        if (!nm || looksLikeId(nm)) continue;
+        for (const v of [it.id, it[`${kind}_id`], it.tokenId, it.token_id, nm]) {
+          put(kind, canonAssetKey(v), nm);
+        }
+      }
+    }
+    /* 提示词里的配对：中文名（编号），编号写法不限 */
+    const text = jobPromptText(ep);
+    const re = /([\u4e00-\u9fff][\u4e00-\u9fff0-9A-Za-z·]{0,15})\s*[（(]\s*@?((?:role|scene|prop)[_-][A-Za-z0-9_-]+)/gi;
+    let m;
+    while ((m = re.exec(text))) {
+      const id = m[2];
+      const kind = /^role/i.test(id) ? 'role' : /^scene/i.test(id) ? 'scene' : 'prop';
+      const nm = String(m[1]).replace(/^(角色|人物|场景|道具)/, '').trim();
+      put(kind, canonAssetKey(id), nm);
+    }
+  }
+  return maps;
+}
+
+/**
+ * 补齐本集资产表的显示名（只改名，不动描述词/图片/音色）。
+ * 修的是「name 为空或等于编号」的行；已有中文名的一律不碰。
+ */
+/* 快速判空：本集资产表是否还有「名字是编号 / 名字为空」的行。
+ * 没有就直接跳过 repairAssetNames —— 它要遍历整个作品所有分镜提示词建名字表，
+ * 100 集时单集 200ms，300 集会拖死启动。绝大多数集名字早就正常了。 */
+function needsNameRepair(sj) {
+  if (!sj) return false;
+  for (const [, field] of NORM_KINDS) {
+    const arr = sj[field];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    for (const it of arr) {
+      if (!it || typeof it !== 'object') continue;
+      const cur = String(it.name || '').trim();
+      if (!cur || looksLikeId(cur)) return true;
+    }
+  }
+  return false;
+}
+
+function repairAssetNames(job, siblings) {
+  const out = { fixed: [], unresolved: [] };
+  const sj = (job && job.script_json) || null;
+  if (!sj) return out;
+  if (!needsNameRepair(sj)) return out;
+  const maps = collectAssetNameMap([job, ...(Array.isArray(siblings) ? siblings : [])]);
+  const text = jobPromptText(job);
+  for (const [kind, field] of NORM_KINDS) {
+    const arr = sj[field];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    let touched = false;
+    const next = arr.map((it) => {
+      if (!it || typeof it !== 'object') return it;
+      const cur = String(it.name || '').trim();
+      if (cur && !looksLikeId(cur)) return it;
+      const keys = [it.id, it[`${kind}_id`], it.tokenId, it.token_id, cur]
+        .map(canonAssetKey).filter(Boolean);
+      let nm = '';
+      for (const k of keys) { nm = maps[kind].get(k) || ''; if (nm) break; }
+      if (!nm && cur) nm = nameFromPromptText(text, cur);
+      if (!nm) {
+        out.unresolved.push(`${kind}:${cur || keys[0] || '?'}`);
+        return it;
+      }
+      touched = true;
+      out.fixed.push(`${kind}:${cur || keys[0]}->${nm}`);
+      const copy = { ...it, name: nm };
+      copy[`${kind}_name`] = nm;
+      return copy;
+    });
+    if (touched) sj[field] = next;
+  }
+  return out;
+}
+
+/**
+ * 【同作品描述词补齐】
+ * 分镜导入只会带 @role_xxx 这种编号，角色描述天然是空的；以前每集都得手打一遍，
+ * 结果就是「角色设置」里名字是编号、描述一片空白。
+ *
+ * 规则（只补空、只认同一个实体、只限同一个作品）：
+ *   1. 只从同一个 parentId（同一部作品）的其它分集取，绝不到别的作品借；
+ *   2. 只认「编号归一化后相同」的实体，不按名字猜（旁白/宾客这种名字各集都有，
+ *      按名字会串内容）；
+ *   3. 只填 description 为空的行，已有描述一律不碰；
+ *   4. 不碰图片：图片仍由用户在本集自己匹配或重新生成。
+ * 这样每集仍然各自持有一份描述（快照，互不引用），只是不用再手打。
+ */
+/* 快速判空：本集是否还有描述为空的资产行。没有就跳过跨集索引与分镜抽取，
+ * 300 集时这两步加起来是启动卡顿的主要来源。 */
+function hasEmptyDescription(sj) {
+  if (!sj) return false;
+  for (const field of ['updated_roles', 'updated_scenes', 'updated_props']) {
+    const arr = sj[field];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    for (const it of arr) {
+      if (!it || typeof it !== 'object') continue;
+      if (!String(it.description || it.visualPrompt || it.prompt || '').trim()) return true;
+    }
+  }
+  return false;
+}
+
+function seedDescriptionsFromSiblings(job, siblings) {
+  const out = { filled: [] };
+  const sj = (job && job.script_json) || null;
+  if (!sj) return out;
+  if (!hasEmptyDescription(sj)) return out;
+  const workId = String((job && (job.parentId || job.parent_id)) || '').trim();
+  if (!workId) return out;   /* 没有作品归属就不跨集取，避免串作品 */
+
+  const index = { role: new Map(), scene: new Map(), prop: new Map() };
+  for (const ep of (Array.isArray(siblings) ? siblings : [])) {
+    if (!ep || ep.kind !== 'episode' || !ep.script_json) continue;
+    if (String(ep.id || '') === String(job.id || '')) continue;
+    if (String(ep.parentId || ep.parent_id || '').trim() !== workId) continue;
+    for (const [kind] of CROSS_SCRIPT_ARRAYS) {
+      for (const it of assetsOf(ep, kind)) {
+        const d = String(it.description || it.visualPrompt || it.prompt || '').trim();
+        if (!d) continue;
+        const key = canonAssetKey(it.id || it[`${kind}_id`] || it.tokenId || it.token_id);
+        if (key && !index[kind].has(key)) index[kind].set(key, d);
+      }
+    }
+  }
+
+  for (const [kind, field] of CROSS_SCRIPT_ARRAYS) {
+    const arr = sj[field];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    let touched = false;
+    const next = arr.map((it) => {
+      if (!it || typeof it !== 'object') return it;
+      if (String(it.description || it.visualPrompt || it.prompt || '').trim()) return it;
+      const key = canonAssetKey(it.id || it[`${kind}_id`] || it.tokenId || it.token_id);
+      const d = key ? index[kind].get(key) || '' : '';
+      if (!d) return it;
+      touched = true;
+      out.filled.push(`${kind}:${String(it.name || it.id || key)}`);
+      return { ...it, description: d };
+    });
+    if (touched) {
+      sj[field] = next;
+      if (field === 'updated_props' && Array.isArray(sj.updated_prop)) sj.updated_prop = next;
+    }
+  }
+  return out;
+}
+
+/**
+ * 【分镜兜底描述】1.0.24 —— 最后一道防线
+ *
+ * 为什么要有：第12集实测暴露的新缺口。走「剧本修订 / 重写」链路时，AI 只回分镜、
+ * 不回资产定义，前端按分镜里的 ( @scene_xxx ) 反查出中文名建行（1.0.22 的补名），
+ * 描述天然是空。同作品补描述只能救「别集出现过的编号」，本集首次出现的新实体
+ * 无处可借 —— 董家旧宅地基、村口水缸、绿叶鞋垫这类就是这么空的。
+ *
+ * 做法：从本集分镜提示词里抽取「包含该资产名的完整分句」，套成既有的
+ * 「属性：值；属性：值」格式，开头标 [自动提取]，方便人工复核后改写。
+ *
+ * 边界（宁可不写，也不瞎写）：
+ *   1. 只处理同作品补齐之后仍为空的行；
+ *   2. 只认「本集分镜真的引用了这个编号」，不按名字猜；
+ *   3. 至少 2 句、合计 24 字才落盘，抽不到就继续留空；
+ *   4. 不覆盖任何已有描述，不碰图片。
+ */
+function deriveDescriptionsFromStoryboard(job) {
+  const out = { filled: [] };
+  const sj = (job && job.script_json) || null;
+  if (!sj || !job.storyboard_json) return out;
+  if (!hasEmptyDescription(sj)) return out;
+
+  const shots = [];
+  walkShots(job.storyboard_json, (node) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node.scene_ids) || Array.isArray(node.prop_ids) || Array.isArray(node.role_ids)) shots.push(node);
+  });
+  if (!shots.length) return out;
+
+  const clean = (s) => String(s || '')
+    .replace(/\s*\(\s*(?:@[A-Za-z0-9_]+\s*)+\)/g, '')   /* 去掉 ( @id ) 引用标记 */
+    .replace(/@[A-Za-z0-9_]+/g, '')                      /* 去掉残留裸 @id */
+    .replace(/[【】]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  /* 剥掉「图片提示词：」「本镜头场景：」「衔接上一镜头：」这类段落标签，留下正文 */
+  const stripLabel = (s) => String(s || '').replace(/^(?:[^：:\n]{1,16}[：:])+/, '').trim();
+
+  /* 纯清单行（只罗列名字）剥完标签也只剩名字，没有描写价值 */
+  const LIST_ONLY = /^(本组资产|本镜头场景|本镜头道具|本镜头角色|角色|场景|道具)\s*[：:]/;
+
+  const SHOT_WORDS = /全景|中景|近景|远景|特写/;
+  const SCENE_WORDS = /构图|前景|背景|地面|墙面|陈设|材质|光影|空间|路边|院|坡|缸|坟|地基|屋子|门/;
+  const STATE_WORDS = /仍|已|未|保持|连续|原位|不动|泛红|倒地|侧倒|湿/;
+
+  const scoreOf = (s) => {
+    let n = 0;
+    if (SHOT_WORDS.test(s)) n += 3;
+    if (SCENE_WORDS.test(s)) n += 2;
+    if (STATE_WORDS.test(s)) n += 1;
+    if (s.length >= 16 && s.length <= 80) n += 1;
+    if (/台词|配音|画外/.test(s)) n -= 3;
+    return n;
+  };
+
+  const harvest = (kind, id, name) => {
+    const idField = kind === 'role' ? 'role_ids' : kind === 'scene' ? 'scene_ids' : 'prop_ids';
+    const bare = bareAssetId(id);
+    const pool = [];
+    for (const shot of shots) {
+      const list = Array.isArray(shot[idField]) ? shot[idField] : [];
+      if (!list.some((x) => bareAssetId(x) === bare)) continue;
+      const text = String(shot.prompt || shot.content || '');
+      if (!text) continue;
+      for (const raw of text.split(/[。；\n]/)) {
+        if (LIST_ONLY.test(String(raw || '').trim())) continue;
+        const piece = clean(stripLabel(clean(raw)));
+        if (!piece || piece.length < 12 || piece.length > 110) continue;
+        if (!piece.includes(name)) continue;
+        if (/｜/.test(piece)) continue;
+        if (pool.includes(piece)) continue;
+        pool.push(piece);
+      }
+    }
+    return pool
+      .map((s) => ({ s, n: scoreOf(s) }))
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 2)
+      .map((x) => x.s);
+  };
+
+  const KINDS = [['role', 'updated_roles'], ['scene', 'updated_scenes'], ['prop', 'updated_props']];
+  for (const [kind, field] of KINDS) {
+    const arr = sj[field];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    let touched = false;
+    const next = arr.map((it) => {
+      if (!it || typeof it !== 'object') return it;
+      if (String(it.description || it.visualPrompt || it.prompt || '').trim()) return it;
+      const id = it.id || it[`${kind}_id`] || it.tokenId || it.token_id;
+      const name = String(it.name || '').trim();
+      if (!id || !name) return it;
+      const hits = harvest(kind, id, name);
+      if (!hits.length || hits.join('').length < 24) return it;
+      const body = hits.join('；');
+      const head = kind === 'role' ? `姓名：${name}；本集表现：`
+        : kind === 'scene' ? `地点：${name}；本集画面：`
+          : `名称：${name}；本集画面与状态：`;
+      const tail = kind === 'role' ? '；年龄、身高、体型、面部、发型、服装：未提供，待统一设定'
+        : kind === 'scene' ? '；空间、材质与光影细节：未提供，待统一设定'
+          : '；尺寸、材质与颜色：未提供，待统一设定';
+      touched = true;
+      out.filled.push(`${kind}:${name}`);
+      return { ...it, description: `[自动提取]${head}${body}${tail}` };
+    });
+    if (touched) {
+      sj[field] = next;
+      if (field === 'updated_props' && Array.isArray(sj.updated_prop)) sj.updated_prop = next;
+    }
+  }
+  return out;
+}
+
+function tableIndexOf(job, kind) {
+  const byId = new Map();
+  const byCanon = new Map();
+  const byName = new Map();
+  for (const it of assetsOf(job, kind)) {
+    const id = bareAssetId(it.id || it[`${kind}_id`] || it.tokenId || it.token_id);
+    const name = String(it.name || '').trim();
+    if (id) {
+      byId.set(id.toLowerCase(), id);
+      byCanon.set(canonAssetKey(id), id);
+    }
+    if (name) {
+      byName.set(name, id);
+      byCanon.set(canonAssetKey(name), id);
+    }
+  }
+  return { byId, byCanon, byName };
+}
+
+/* 递归找分镜对象（兼容 storyboards / updated_storyboards / 任意嵌套） */
+function walkShots(node, cb, depth) {
+  const d = depth || 0;
+  if (!node || typeof node !== 'object' || d > 8) return;
+  if (Array.isArray(node)) { for (const x of node) walkShots(x, cb, d + 1); return; }
+  cb(node);
+  for (const v of Object.values(node)) {
+    if (v && typeof v === 'object') walkShots(v, cb, d + 1);
+  }
+}
+
+/**
+ * 分镜引用对齐：把 role_ids/scene_ids/prop_ids 里「表里不存在的写法」
+ * 改成本集资产表里的正式编号；表里完全没有、但提示词能反查出中文名的，
+ * 补一行只有名字的空资产（本集独立，不继承别集描述/图片）。
+ * 这样界面不会再把编号当名字显示。
+ */
+function relinkShotRefs(job) {
+  const out = { relinked: [], created: [], dangling: [] };
+  const sj = (job && job.script_json) || null;
+  if (!sj || !job.storyboard_json) return out;
+  const idx = {};
+  for (const [kind] of SHOT_REF_FIELDS) idx[kind] = tableIndexOf(job, kind);
+
+  /* 补空资产行：只补名字，描述与图片留空，等用户按集重新上传/匹配 */
+  const ensureRow = (kind, rid, nm) => {
+    const field = kind === 'role' ? 'updated_roles' : kind === 'scene' ? 'updated_scenes' : 'updated_props';
+    if (!Array.isArray(sj[field])) sj[field] = [];
+    const id = `@${bareAssetId(rid)}`;
+    const row = { id, name: nm };
+    row[`${kind}_id`] = id;
+    row[`${kind}_name`] = nm;
+    sj[field].push(row);
+    const t = tableIndexOf(job, kind);
+    idx[kind] = t;
+    out.created.push(`${kind}:${nm}(${bareAssetId(rid)})`);
+    return bareAssetId(rid);
+  };
+
+  walkShots(job.storyboard_json, (obj) => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+    const prompt = String(obj.prompt || obj.text || obj.promptText || '');
+    for (const [kind, snake, camel] of SHOT_REF_FIELDS) {
+      for (const f of [snake, camel]) {
+        const list = obj[f];
+        if (!Array.isArray(list) || !list.length) continue;
+        const seen = new Set();
+        const next = [];
+        for (const raw of list) {
+          const rid = bareAssetId(raw);
+          if (!rid) continue;
+          const t = idx[kind];
+          let hit = t.byId.get(rid.toLowerCase()) || t.byCanon.get(canonAssetKey(rid)) || '';
+          if (!hit) {
+            const nm = nameFromPromptText(prompt, rid);
+            if (nm) {
+              hit = t.byName.get(nm) || t.byCanon.get(canonAssetKey(nm)) || '';
+              if (!hit) hit = ensureRow(kind, rid, nm);
+            }
+          }
+          if (!hit) { out.dangling.push(`${kind}:${rid}`); continue; }
+          const val = String(raw).startsWith('@') ? `@${bareAssetId(hit)}` : bareAssetId(hit);
+          if (bareAssetId(hit) !== rid) out.relinked.push(`${kind}:${rid}->${bareAssetId(hit)}`);
+          if (seen.has(val)) continue;
+          seen.add(val);
+          next.push(val);
+        }
+        if (next.length !== list.length || next.some((v, i) => v !== list[i])) obj[f] = next;
+      }
+    }
+  });
+  return out;
+}
+
+/** 读/写/启动共用的唯一入口：补名 -> 对齐分镜引用 -> 补空描述
+ * 顺序很重要：relinkShotRefs 会补出「只有名字」的占位行，
+ * 描述补齐必须放在它后面，否则新补出来的行永远是空描述。 */
+function normalizeEpisodeAssets(job, siblings) {
+  const names = repairAssetNames(job, siblings);
+  const refs = relinkShotRefs(job);
+  const desc = seedDescriptionsFromSiblings(job, siblings);
+  /* 同作品无基线（本集首次出现的新实体）时，从本集分镜提示词兜底提取，避免空白 */
+  const derived = deriveDescriptionsFromStoryboard(job);
+  /* 兼容旧字段：有些页面读 updated_prop，有些读 updated_props */
+  const sj = (job && job.script_json) || {};
+  if (Array.isArray(sj.updated_props) && Array.isArray(sj.updated_prop)) {
+    sj.updated_prop = sj.updated_props;
+  }
+  const changed = names.fixed.length + desc.filled.length + derived.filled.length
+    + refs.relinked.length + refs.created.length > 0;
+  return { job, changed, names, desc, derived, refs };
+}
+
 /* ------------------------------------------------------------------
  * 每集独立硬守卫（1.0.19）
  *
@@ -651,6 +1127,13 @@ function crossPathStrings(it) {
   return out;
 }
 
+/* 每集独立 v3：描述词同样不允许跨集沿用。新集可以重新上传/重新提取，
+ * 但不能带着别集的描述词落地（客户截图里那种 role_xxx 空壳行就是这么来的）。 */
+const CROSS_DESC_FIELDS = [
+  'description', 'visualPrompt', 'prompt', 'remark', 'desc', 'appearance',
+  'outfit', 'promptText', 'descText', 'feature', 'features', 'visual_prompt',
+];
+
 function clearCrossImages(it) {
   for (const f of CROSS_IMG_FIELDS) {
     const v = it[f];
@@ -659,8 +1142,20 @@ function clearCrossImages(it) {
   }
 }
 
+function clearCrossDescriptions(it) {
+  for (const f of CROSS_DESC_FIELDS) {
+    if (typeof it[f] === 'string' && it[f]) it[f] = '';
+  }
+}
+
+/* 从分镜里的「郭宝才 ( @role_guobaocai )」这种标注反查中文名。
+ * 1.0.22 起统一走宽松匹配，编号写法（下划线/连字符/@）不同也能命中。 */
+function nameFromPrompt(text, key) {
+  return nameFromPromptText(text, key);
+}
+
 function stripCrossEpisodeAssets(job, prev, others) {
-  const result = { job, removed: [], cleared: [] };
+  const result = { job, removed: [], cleared: [], renamed: [], unresolved: [] };
   const sj = job && job.script_json;
   if (!sj || typeof sj !== 'object') return result;
 
@@ -668,16 +1163,27 @@ function stripCrossEpisodeAssets(job, prev, others) {
   const otherIds = eps.map((x) => String(x.id || '').trim()).filter((v) => v.length >= 8);
   if (!otherIds.length) return result;
 
-  /* 兄弟集资产索引：key -> 描述集合（描述逐字相同 = 从别集复制来的强证据） */
+  /* 兄弟集资产索引：key -> 描述集合（描述逐字相同 = 从别集复制来的强证据）
+   * 另建 nameIndex：key -> 兄弟集里的中文名，只用来给「name=role_xxx」的空壳补名 —
+   * 名字是身份，不是本集内容；描述词和图片永远不跨集。 */
   const index = { role: new Map(), scene: new Map(), prop: new Map() };
+  const nameIndex = { role: new Map(), scene: new Map(), prop: new Map() };
   for (const ep of eps) {
     for (const [kind] of CROSS_SCRIPT_ARRAYS) {
       for (const it of assetsOf(ep, kind)) {
         const k = keyOf(it, kind);
-        if (!k) continue;
-        if (!index[kind].has(k)) index[kind].set(k, new Set());
+        /* 同一实体在别集可能是另一种编号写法（role_dong_zhen / role_dongzhen），
+         * 索引同时登记归一化键，否则「跨集同源」永远判不出来，也会被当成新实体落盘。 */
+        const ck = canonAssetKey(it.id || it[`${kind}_id`] || it.tokenId || it.token_id || k);
+        const keys = [k, ck].filter(Boolean);
+        if (!keys.length) continue;
         const d = String(it.description || it.visualPrompt || it.prompt || '').trim();
-        if (d) index[kind].get(k).add(d);
+        const nm = String(it.name || '').trim();
+        for (const key of keys) {
+          if (!index[kind].has(key)) index[kind].set(key, new Set());
+          if (d) index[kind].get(key).add(d);
+          if (nm && !looksLikeId(nm) && !nameIndex[kind].has(key)) nameIndex[kind].set(key, nm);
+        }
       }
     }
   }
@@ -697,8 +1203,15 @@ function stripCrossEpisodeAssets(job, prev, others) {
     const nm = String(it.name || '').trim();
     return !!(nm && nm.length >= 2 && blob.indexOf(nm) >= 0);
   };
-  const sameAsSibling = (it, kind, k) => {
-    const set = index[kind].get(k);
+  const siblingSet = (kind, keys) => {
+    for (const key of keys) {
+      const set = index[kind].get(key);
+      if (set) return set;
+    }
+    return null;
+  };
+  const sameAsSibling = (it, kind, keys) => {
+    const set = siblingSet(kind, keys);
     if (!set) return false;
     const d = String(it.description || it.visualPrompt || it.prompt || '').trim();
     return !d || !set.size || set.has(d);
@@ -707,7 +1220,9 @@ function stripCrossEpisodeAssets(job, prev, others) {
   for (const [kind] of CROSS_SCRIPT_ARRAYS) {
     for (const it of assetsOf(prev || {}, kind)) {
       const k = keyOf(it, kind);
+      const ck = canonAssetKey(it.id || it[`${kind}_id`] || it.tokenId || it.token_id || k);
       if (k) prevKeys[kind].add(k);
+      if (ck) prevKeys[kind].add(ck);
     }
   }
 
@@ -717,12 +1232,33 @@ function stripCrossEpisodeAssets(job, prev, others) {
     for (const it of sj[field]) {
       if (!it || typeof it !== 'object') { kept.push(it); continue; }
       const k = keyOf(it, kind);
+      const ck = canonAssetKey(it.id || it[`${kind}_id`] || it.tokenId || it.token_id || k);
+      const keys = [k, ck].filter(Boolean);
       /* 本集原有的条目一律放行：不删、不清图，避免动用户已配好的资产 */
-      if (k && prevKeys[kind].has(k)) { kept.push(it); continue; }
+      if (keys.some((key) => prevKeys[kind].has(key))) { kept.push(it); continue; }
+      /* 【每集完全独立 v3.1】新集首次落盘：跟兄弟集同源的实体，图片绝不沿用
+       * （图片必须在本集自己匹配或重新生成）。
+       * 本集分镜/剧本没提到 -> 整行移除；
+       * 提到了 -> 保留这一行，但只清图片，描述词不再清空：
+       *   描述词属于「同一个角色的身份设定」，同一个作品里同一个编号就是同一个人，
+       *   清空只会让每一集都变成空白、逼用户手打。空描述由
+       *   seedDescriptionsFromSiblings 从同作品其它集补一份快照（各集仍各存一份）。
+       * 本集自己重新提取且描述词不同的实体不受影响。 */
+      if ((!prev || !prev.script_json) && keys.length && siblingSet(kind, keys) && sameAsSibling(it, kind, keys)) {
+        if (!referenced(it)) {
+          result.removed.push(`${kind}:${String(it.name || k)}`);
+          continue;
+        }
+        const keptRow = { ...it };
+        clearCrossImages(keptRow);
+        result.cleared.push(`${kind}:${String(it.name || k)}`);
+        kept.push(keptRow);
+        continue;
+      }
       const paths = crossPathStrings(it);
       const crossPath = paths.some((p) => otherIds.some((id) => p.indexOf(id) >= 0));
       /* 本集分镜/脚本根本没提到、又跟兄弟集同源的实体，不写进本集 */
-      if (k && index[kind].has(k) && sameAsSibling(it, kind, k) && !referenced(it)) {
+      if (keys.length && siblingSet(kind, keys) && sameAsSibling(it, kind, keys) && !referenced(it)) {
         result.removed.push(`${kind}:${String(it.name || k)}`);
         continue;
       }
@@ -737,6 +1273,12 @@ function stripCrossEpisodeAssets(job, prev, others) {
     sj[field] = kept;
     if (field === 'updated_props' && Array.isArray(sj.updated_prop)) sj.updated_prop = kept;
   }
+
+  /* 【资产名回填】统一走 repairAssetNames（同一个归一化键、同一套提示词反查），
+   * 避免「守卫里补名」和「读取时补名」两套规则各修一半、互相打架。 */
+  const named = repairAssetNames(job, eps);
+  result.renamed.push(...named.fixed);
+  result.unresolved.push(...named.unresolved);
   return result;
 }
 
@@ -745,4 +1287,11 @@ module.exports = {
   mergeJobOnSave, mergeEntity, isEmptyVal, refAlive, fillAssetRefs,
   dedupeJobAssets, listAssetsWithImages, fillAssetsFromLibrary, normAssetName, replaceAssetRefs,
   stripCrossEpisodeAssets,
+  /* 1.0.22 资产身份归一化 + 引用完整性（读/写/启动共用） */
+  canonAssetKey, nameFromPromptText, collectAssetNameMap,
+  repairAssetNames, relinkShotRefs, normalizeEpisodeAssets,
+  /* 1.0.23 同作品空描述快照补齐（各集各存一份，不跨作品） */
+  seedDescriptionsFromSiblings,
+  /* 1.0.24 本集新实体分镜兜底描述（同作品无基线时用） */
+  deriveDescriptionsFromStoryboard,
 };

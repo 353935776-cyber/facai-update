@@ -71,11 +71,20 @@ if (!HAS_LOCK) {
 }
 app.on('second-instance', () => {
   try {
-    if (!win) return;
+    /* 窗口已经销毁但进程还活着（关窗时被「还有图片在传」拦下、用户选了继续等待，
+     * 或者渲染进程挂了）—— 这时候只 show() 是没用的，win 是个死对象，
+     * 用户看到的就是「双击图标没反应、软件打不开」。必须重新建一个窗口。 */
+    if (!win || win.isDestroyed()) {
+      log('[instance] 已有进程但没有窗口，重建主窗口');
+      createWindow();
+      return;
+    }
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
-  } catch { /* ignore */ }
+  } catch (e) {
+    log('[instance] 拉起窗口失败', (e && e.message) || e);
+  }
 });
 const PORT = Number(process.env.MJ_PORT || 17900);
 const PROXY_PORT = Number(process.env.MJ_PROXY_PORT || (PORT + 1));
@@ -396,6 +405,20 @@ function rewriteUrl(raw) {
   return `http://127.0.0.1:${PROXY_PORT}/px/${encodeURIComponent(origin)}${rest}`;
 }
 
+/* 只有「垫片自己的上游」才需要 Gemini → OpenAI 翻译。
+ * 客户在「软件设置 → 推理模型 → API 平台配置」里新加的地址（如 api.mmg.lat）大多原生支持
+ * /v1beta 协议，硬转成 OpenAI 会把客户的 key 发到 aicost、拿回 401 又被吞成空响应，
+ * 前端就只看到「模型返回为空」。 */
+function shimOwnsHost(origin) {
+  const norm = (h) => String(h || '').toLowerCase().replace(/^www\./, '');
+  try {
+    const a = norm(new URL(String(origin || '')).hostname);
+    const b = norm(new URL(String(SHIM.baseUrl || '')).hostname);
+    if (!a || !b) return false;
+    return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+  } catch { return false; }
+}
+
 /* Gemini 原生协议 → OpenAI 兼容（aicost）
  * 命中 `{base}/v1beta/models/{model}:generateContent` 或 `:streamGenerateContent`
  * 时，把请求改写成 /v1/chat/completions，并把响应翻译回 Gemini 形态。
@@ -444,14 +467,48 @@ function handleGeminiShim(req, res, rest, m, CORS) {
         upRes.on('data', (d) => bufs.push(d));
         upRes.on('end', () => {
           const raw = Buffer.concat(bufs).toString('utf8');
+          const code = upRes.statusCode || 502;
+          /* 上游报错要原样告诉前端：以前不管状态码一律回 200 空响应，
+           * 客户只能看到「模型返回为空」，根本不知道是 key 不对还是模型不存在 */
+          if (code >= 400) {
+            let msg = raw.slice(0, 300);
+            try {
+              const j = JSON.parse(raw);
+              msg = (j.error && (j.error.message || j.error.code)) || j.message || msg;
+            } catch { /* 保留原文 */ }
+            log('gemini shim 上游报错', code, String(msg).slice(0, 160));
+            res.writeHead(code, { ...CORS, 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: { code, message: msg } }));
+            return;
+          }
           let out;
           try { out = geminiShim.toGeminiResponse(JSON.parse(raw)); } catch {
-            res.writeHead(upRes.statusCode && upRes.statusCode >= 400 ? upRes.statusCode : 502, { ...CORS, 'content-type': 'application/json; charset=utf-8' });
+            res.writeHead(502, { ...CORS, 'content-type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ error: { message: '上游返回非 JSON：' + raw.slice(0, 300) } }));
             return;
           }
           res.writeHead(200, { ...CORS, 'content-type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify(out));
+        });
+        return;
+      }
+      /* 流式也一样：先把状态码看清楚再决定回什么，避免把 401/404 伪装成「200 + 空内容」 */
+      if ((upRes.statusCode || 502) >= 400) {
+        const bufs = [];
+        upRes.on('data', (d) => bufs.push(d));
+        upRes.on('end', () => {
+          const raw = Buffer.concat(bufs).toString('utf8');
+          const code = upRes.statusCode || 502;
+          let msg = raw.slice(0, 300);
+          try {
+            const j = JSON.parse(raw);
+            msg = (j.error && (j.error.message || j.error.code)) || j.message || msg;
+          } catch { /* 保留原文 */ }
+          log('gemini shim 上游报错', code, String(msg).slice(0, 160));
+          try {
+            res.writeHead(code, { ...CORS, 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: { code, message: msg } }));
+          } catch { /* 客户端已断开 */ }
         });
         return;
       }
@@ -550,7 +607,11 @@ function startProxyServer() {
       // 有的前端路径只拼到 /v1beta/models/{model}（不带 :generateContent），也一并接住
       const gm = /^\/v1beta\/models\/([^:?#/]+)(?::(generateContent|streamGenerateContent))?\/?$/i.exec(gpath);
       const isRealGoogle = /googleapis\.com/i.test(origin || '');
-      if (gm && SHIM.enabled && !isRealGoogle) { handleGeminiShim(req, res, rest, gm, CORS); return; }
+      /* 客户自己填的 Gemini 地址原样透传（原生 /v1beta 直连），只有目标是垫片上游时才翻译 */
+      if (gm && SHIM.enabled && !isRealGoogle && shimOwnsHost(origin)) {
+        handleGeminiShim(req, res, rest, gm, CORS);
+        return;
+      }
       let target;
       try { target = new URL(origin); } catch { res.writeHead(400, CORS); res.end('proxy: bad origin'); return; }
       /* 出图接口：响应旁路一份，用于留证据 + 兜底落盘（见 image-rescue.cjs） */
@@ -680,6 +741,7 @@ function injectOverlays(wc) {
       } catch { /* 页面没就绪就算了，下次加载还会再试 */ }
     };
     inject('update-badge.js');
+    inject('asset-name-guard.js');
     if (devMode.enabled()) inject('dev-badge.js');
   });
 }
@@ -1118,7 +1180,93 @@ handle('asset:delete', (p) => { try { fs.unlinkSync(String(p || '')); } catch { 
 const JOBS_FILE = path.join(DATA_DIR, 'jobs.json');
 function loadJobs() { const j = readJson(JOBS_FILE, { jobs: [] }); return Array.isArray(j.jobs) ? j.jobs : []; }
 function saveJobs(list) { writeJson(JOBS_FILE, { jobs: list }); }
-handle('job:list', () => ({ success: true, data: loadJobs() }));
+
+/* 备份 jobs.json（同一 tag 只留最近 5 份，避免备份目录越滚越大） */
+function backupJobsFile(tag) {
+  try {
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const dst = path.join(DATA_DIR, `jobs.json.bak-${tag}-${stamp}.json`);
+    if (!fs.existsSync(dst)) fs.copyFileSync(JOBS_FILE, dst);
+    const prefix = `jobs.json.bak-${tag}-`;
+    const olds = fs.readdirSync(DATA_DIR)
+      .filter((n) => n.startsWith(prefix))
+      .sort()
+      .slice(0, -5);
+    for (const n of olds) { try { fs.unlinkSync(path.join(DATA_DIR, n)); } catch { /* ignore */ } }
+  } catch { /* 备份失败不阻断主流程 */ }
+}
+
+/**
+ * 唯一的数据出口：所有剧集都过一遍「资产身份归一化 + 分镜引用对齐」。
+ * 读（job:list）、写（job:create）、启动迁移都走这里，避免只在某一个入口
+ * 打补丁、换个页面/换台机器又复现（1.0.22）。
+ */
+function normalizeJobsInPlace(jobs) {
+  const report = { fixed: [], desc: [], derived: [], relinked: [], created: [], dangling: [], changed: false, errors: 0 };
+  let mod = null;
+  try { mod = require('./asset-repair.cjs'); } catch { return report; }
+  if (!mod || typeof mod.normalizeEpisodeAssets !== 'function') return report;
+  const eps = (Array.isArray(jobs) ? jobs : []).filter((x) => x && x.kind === 'episode' && x.script_json);
+  for (const job of eps) {
+    const siblings = eps.filter((x) => {
+      if (x === job) return false;
+      const a = String(x.parentId || x.parent_id || '');
+      const b = String(job.parentId || job.parent_id || '');
+      return !a || !b || a === b;
+    });
+    try {
+      const r = mod.normalizeEpisodeAssets(job, siblings);
+      if (r.changed) report.changed = true;
+      report.fixed.push(...r.names.fixed);
+      report.desc.push(...((r.desc && r.desc.filled) || []));
+      report.derived.push(...((r.derived && r.derived.filled) || []));
+      report.relinked.push(...r.refs.relinked);
+      report.created.push(...r.refs.created);
+      report.dangling.push(...r.refs.dangling);
+    } catch (e) {
+      report.errors += 1;
+      log('[asset] 归一化失败', job.id, (e && e.message) || e);
+    }
+  }
+  return report;
+}
+function logNormalizeReport(tag, r) {
+  if (!r || !r.changed) return;
+  log(`[asset] ${tag}归一化`, JSON.stringify({
+    补名: r.fixed.length, 补描述: (r.desc || []).length,
+    分镜兜底描述: (r.derived || []).length, 改引用: r.relinked.length,
+    补空资产: r.created.length, 仍悬空: r.dangling.length,
+  }));
+  if (r.fixed.length) log('[asset] 补名明细', r.fixed.slice(0, 12).join(' '));
+  if ((r.desc || []).length) log('[asset] 补描述明细', r.desc.slice(0, 12).join(' '));
+  if ((r.derived || []).length) log('[asset] 分镜兜底描述明细', r.derived.slice(0, 12).join(' '));
+  if (r.relinked.length) log('[asset] 引用明细', r.relinked.slice(0, 12).join(' '));
+  if (r.created.length) log('[asset] 新增占位资产', r.created.slice(0, 12).join(' '));
+}
+/* job:list 每次进页面都会调；100 集时全量扫提示词有开销。
+ * 用 jobs.json 的 mtime+size 做戳，没变过就直接返回，只在写盘后归一化一次。 */
+let lastNormStamp = '';
+function jobsFileStamp() {
+  try { const st = fs.statSync(JOBS_FILE); return `${st.mtimeMs}:${st.size}`; } catch { return ''; }
+}
+handle('job:list', () => {
+  const jobs = loadJobs();
+  const stamp = jobsFileStamp();
+  if (stamp && stamp === lastNormStamp) return { success: true, data: jobs };
+  try {
+    const r = normalizeJobsInPlace(jobs);
+    if (r.changed) {
+      backupJobsFile('before-normalize');
+      saveJobs(jobs);
+      logNormalizeReport('读取时', r);
+    }
+    lastNormStamp = jobsFileStamp();
+    if (r.dangling.length) log('[asset] 分镜引用了表里没有的实体', `${r.dangling.length} 条`, r.dangling.slice(0, 8).join(' '));
+  } catch (e) {
+    log('[job:list] 归一化失败，按原样返回', (e && e.message) || e);
+  }
+  return { success: true, data: jobs };
+});
 
 /* 兜底图挂回资产表：按提示词里出现的资产名匹配。
  * 批量生图在前端「下载失败就直接 return、还不报错」，这里的兜底能把它救回来。 */
@@ -1208,6 +1356,25 @@ handle('job:create', (job) => {
     saved = guarded.job;
     if (guarded.removed.length) log('[asset] 拦截跨集带入实体', guarded.removed.join(' '));
     if (guarded.cleared.length) log('[asset] 清除跨集带入图片', guarded.cleared.join(' '));
+    if (guarded.renamed.length) log('[asset] 回填空壳资产名', guarded.renamed.join(' '));
+    if (guarded.unresolved.length) log('[asset] 未能补名的资产（保留编号）', guarded.unresolved.join(' '));
+    /* 写完再走一遍统一归一化：补齐历史空壳行 + 把分镜 role_ids 对齐到本集资产表。
+     * 有些页面保存的是旧内存对象，只靠上面的「新增条目」规则修不到已存在的空壳。 */
+    const { normalizeEpisodeAssets } = require('./asset-repair.cjs');
+    const siblings = all.filter((x) => String(x && x.id) !== id);
+    const norm = normalizeEpisodeAssets(saved, siblings);
+    if (norm.changed) {
+      logNormalizeReport('保存时', {
+        changed: true,
+        fixed: norm.names.fixed,
+        desc: (norm.desc && norm.desc.filled) || [],
+        derived: (norm.derived && norm.derived.filled) || [],
+        relinked: norm.refs.relinked,
+        created: norm.refs.created,
+        dangling: norm.refs.dangling,
+      });
+    }
+    if (norm.refs.dangling.length) log('[asset] 分镜引用了表里没有的实体', norm.refs.dangling.slice(0, 8).join(' '));
   } catch (err) {
     log('[job:create] 本集归并/跨集隔离失败', (err && err.message) || err);
   }
@@ -1227,6 +1394,7 @@ handle('job:flags', () => ({ success: true, data: {} }));
 /* --- 在线热更新（前端可主动触发；启动时也会静默查一次） --- */
 handle('app:updateInfo', () => ({ success: true, data: updater.info() }));
 handle('app:updateCheck', () => updater.check({ silent: false }));
+handle('app:updateDiag', () => updater.diag());
 handle('app:updateSetUrl', (url) => ({ success: true, data: updater.setUrl(url) }));
 
 /* --- 渠道 / 开发者工具 ---
@@ -2174,7 +2342,18 @@ app.on('before-quit', (e) => {
   } catch {
     leave = true; /* 弹窗本身出错就别拦着用户了 */
   }
-  if (leave) { quitConfirmed = true; app.quit(); }
+  if (leave) { quitConfirmed = true; app.quit(); return; }
+  /* 选了「继续等待」但窗口已经被关掉了：把窗口拉回来，别留一个没有界面的僵尸进程。
+   * 否则之后每次双击图标都只会提示「已有实例在运行」，看起来就是软件打不开。 */
+  try {
+    if (!win || win.isDestroyed()) {
+      createWindow();
+    } else {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  } catch { /* 拉不起来也不阻断，用户还能从任务管理器结束 */ }
 });
 app.on('will-quit', stopAllHelpers);
 // 被拦下来的那一次不能停后台助手，否则等于「假退出」，再点生成就起不来
@@ -2286,18 +2465,37 @@ app.whenReady().then(async () => {
   /* 历史数据兜底：早期「导入分镜」只把 @role_xxx 这类 ID 写进本集资产表，姓名/描述丢了，
    * 表现就是第 1 集正常、第 2 集一导入角色设置全变成 role_xxx。这里按同一作品回填，幂等。 */
   try {
-    const { repairJobs, fillAssetRefs } = require('./asset-repair.cjs');
+    const { repairJobs, fillAssetRefs, looksLikeId } = require('./asset-repair.cjs');
     const r = repairJobs(loadJobs());
     /* 补图片引用：不同页面写盘时字段不统一，imageUrl 常被抹空 → 卡片没缩略图 */
     const f = fillAssetRefs(r.jobs, path.join(DATA_DIR, 'assets'));
-    if (r.changed || f.changed) {
-      try {
-        const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-        fs.copyFileSync(JOBS_FILE, path.join(DATA_DIR, `jobs.json.bak-before-assetrepair-${stamp}`));
-      } catch { /* 备份失败不阻断启动 */ }
+    /* 统一归一化：历史空壳（name=role_xxx）+ 分镜里指向不存在实体的引用，
+     * 启动时一次性修干净，之后读写都会保持。1.0.22 */
+    const n = normalizeJobsInPlace(f.jobs);
+    if (r.changed || f.changed || n.changed) {
+      backupJobsFile('before-assetrepair');
       saveJobs(f.jobs);
       log('[asset-repair] 回填完成', JSON.stringify({ ...r.stats, refs: f.stats }));
+      logNormalizeReport('启动', n);
     }
+    if (n.dangling.length) log('[asset] 分镜引用了表里没有的实体（未能自动补）', `${n.dangling.length} 条`, n.dangling.slice(0, 12).join(' '));
+    /* 自检：日志里出现这条就说明还有「名字是编号」的资产（角色设置会显示 role_xxx）。
+     * 正常情况下回填后应为 0；留着方便客户反馈时一眼定位。 */
+    try {
+      const audit = [];
+      const noDesc = [];
+      for (const job of f.jobs) {
+        for (const field of ['updated_roles', 'updated_scenes', 'updated_props']) {
+          for (const it of ((job.script_json || {})[field] || [])) {
+            const nm = String((it && it.name) || '').trim();
+            if (!nm || looksLikeId(nm)) audit.push(`ep${job.episodeNo || '?'}:${field}:${nm || '(空)'}`);
+            if (!String((it && it.description) || '').trim()) noDesc.push(`ep${job.episodeNo || '?'}:${field}:${nm || '?'}`);
+          }
+        }
+      }
+      if (audit.length) log('[asset-audit] 仍有未命名资产', `${audit.length} 条`, audit.slice(0, 12).join(' '));
+      if (noDesc.length) log('[asset-audit] 空描述资产', `${noDesc.length} 条`, noDesc.slice(0, 12).join(' '));
+    } catch { /* 自检失败不影响启动 */ }
   } catch (e) {
     log('[asset-repair] 跳过', (e && e.message) || e);
   }

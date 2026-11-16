@@ -1,7 +1,7 @@
 {
   "name": "xinghe-aigc",
   "productName": "星核AIGC",
-  "version": "1.0.20",
+  "version": "1.0.24",
   "description": "星核AIGC · 漫剧创作引擎",
   "author": "星核",
   "main": "electron/main.cjs",
