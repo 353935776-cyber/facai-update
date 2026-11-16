@@ -2,7 +2,7 @@
   "version": "1.0.22",
   "notes": "1.0.22：资产身份归一化（role_dong_zhen/role_dongzhen 视为同一实体）+ 分镜引用对齐，读取/保存/启动三处统一修复，彻底消除每集 role_xxx 空壳",
   "pubDate": "2026-11-16T11:00:27.531Z",
-  "fileBase": "files/",
+  "fileBase": "../xinghe-hotfix-1.0.22/files/",
   "files": [
     {
       "path": "app/asset-name-guard.js",
