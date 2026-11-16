@@ -1,2 +1,2 @@
-# facai-update
-發財AI 更新文件
+# xinghe-update
+星核AIGC 更新文件
