@@ -1,9 +1,14 @@
 {
-  "version": "1.0.20",
-  "notes": "1.0.20：账号备份/恢复对话框支持 .txt；恢复前识别备份来源，避免画布备份被误导入星核",
-  "pubDate": "2026-11-15T10:35:52.530Z",
-  "fileBase": "files/",
+  "version": "1.0.22",
+  "notes": "1.0.22：资产身份归一化（role_dong_zhen/role_dongzhen 视为同一实体）+ 分镜引用对齐，读取/保存/启动三处统一修复，彻底消除每集 role_xxx 空壳",
+  "pubDate": "2026-11-16T11:00:27.531Z",
+  "fileBase": "../xinghe-hotfix-1.0.22/files/",
   "files": [
+    {
+      "path": "app/asset-name-guard.js",
+      "size": 4365,
+      "sha256": "3147e99176584e95f75c4c55bf1ac32b7c69ccd2a8fd9d270f298a8241ecfd4a"
+    },
     {
       "path": "app/assets/banana-B3i94Uiq.js",
       "size": 12856,
@@ -351,8 +356,8 @@
     },
     {
       "path": "electron/asset-repair.cjs",
-      "size": 30143,
-      "sha256": "9c8884b7cbc8d06d0b9a2ab886b3f29d36428c08ff1278a1a3b8313246368c9e"
+      "size": 44948,
+      "sha256": "16fcda7236d1b361e282553e49772532d73094673d8d92ad2b916e43cad4c93d"
     },
     {
       "path": "electron/dev-mode.cjs",
@@ -381,13 +386,13 @@
     },
     {
       "path": "electron/main.cjs",
-      "size": 119852,
-      "sha256": "ff7b7e4caecf1cda9dbf6a48a5e281a7d623d86bc59d450aeee83c2f627e3926"
+      "size": 128106,
+      "sha256": "aed7e52ee376a1c0e925f498daa1507e5dc86fd314dcc3cf95f3b21c1ffaf6ca"
     },
     {
       "path": "electron/preload.cjs",
-      "size": 8654,
-      "sha256": "62ccff54173274a6614036b595387090a8aa3508baacb7f5c16da5d8c6ce6b3d"
+      "size": 8696,
+      "sha256": "4378ec94c7b5363b6fc660a15a5655631b7fac6d912d2a6bf5cd05affc6656fe"
     },
     {
       "path": "electron/prompt-builders.cjs",
@@ -407,7 +412,7 @@
     {
       "path": "package.json",
       "size": 1693,
-      "sha256": "bc9c524bef4ce7f4d4de179b15ff78d6cab290fc18c97bead9fa7c4f63a4bb36"
+      "sha256": "f874e478087573fef0ebf0aca49dbdc2757bae2d21723cad5bae656abdf3e67d"
     },
     {
       "path": "tools/gen-update-config.cjs",
@@ -425,5 +430,5 @@
       "sha256": "3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"
     }
   ],
-  "sig": "2942e060b582b5ae0dc09bd9579546c0d58d26a3455ac6baa8629ce4719ef5de"
+  "sig": "3ec91fba0ccd9513d27714ea986446032ef7b5c2e9f607b6e930ca5cb0b12b2d"
 }
