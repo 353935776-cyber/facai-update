@@ -1,1 +1,434 @@
-{"version":"1.0.23","notes":"1.0.23：角色设置里名字/描述同步（保存后回填内存）+ 同作品空描述快照补齐，解决每集导入后 role_xxx、描述空白","pubDate":"2026-11-16T12:17:20.849Z","fileBase":"../xinghe-hotfix-1.0.23/files/","files":[{"path":"app/asset-name-guard.js","size":8614,"sha256":"527b117039e50d3571e01eaab3ad886d90a98496b19abfaefdda3320bfd81fbd"},{"path":"app/assets/banana-B3i94Uiq.js","size":12856,"sha256":"bfbfe5790a672527ed92ee622ada32fef7e5fce299bd8c7beca63564b66ccabb"},{"path":"app/assets/ChatRoomView-7J_R9yzs.css","size":33667,"sha256":"4ab2102c205e44f30b7950fbcee28ab25b7e8a5a86ee382bd125b4654f8c7075"},{"path":"app/assets/ChatRoomView-BEHWzUiz.js","size":2226805,"sha256":"d841fa1746bd102f5a1582c40d3852a1401cb1c8847b154044a6474be5dec445"},{"path":"app/assets/chatSkills-CcRzo5Df.js","size":876054,"sha256":"0d4e2c3274fca00ef3acb959c137970a3c9cd40231773e359fe66a30eb705c9c"},{"path":"app/assets/chatSkills-f79ahihU.css","size":4901,"sha256":"eec67be074ca86f88388c84e556c61a7e86e0ae5f3f15fed48c156257b640884"},{"path":"app/assets/CoverGenerateView-Cul3vmWY.css","size":37949,"sha256":"33c3b5c55eefd7d5561521b3372e47fcdfc40b5da4d4dfe6356817e623646f6e"},{"path":"app/assets/CoverGenerateView-DcUETtzj.js","size":34592,"sha256":"a393e7f550fa9e7537c2f63f5db34ecd39d36cddf93780f681090c9f2beeab59"},{"path":"app/assets/DoubaoWorkbenchView-DaTSxDZR.js","size":27170,"sha256":"63b6c5046d4652d9644546ef58cd87740d4cf131fb889954ca94463ff8c99b6f"},{"path":"app/assets/DoubaoWorkbenchView-nmkGv5Kf.css","size":14672,"sha256":"ee9fd36667814d7d4effc304f350b99c31b830ad64528a15b0442e9e43478f5f"},{"path":"app/assets/EpisodeListView-ByxoZ2xy.js","size":4863,"sha256":"838e6d30f9a944fe0886ccf613f6013276f3b7e033b6fdd75b3a4c7d234acf7f"},{"path":"app/assets/EpisodeListView-CLbKiA3W.css","size":2939,"sha256":"6e23d8ebc06ac5d75f579d15a973c686e292b05ec22f6ac019711a38d4a7b66e"},{"path":"app/assets/FileSaver.min-CZYxb4hK.js","size":2634,"sha256":"1874078b06efb587748420e7d4fe92c4e93e3a2026305a3be377f41969e46575"},{"path":"app/assets/index--A2QUzi9.js","size":852957,"sha256":"cb752b2cd1f8952d2048036891136aa246667d392f20cb981a02bf20cdb65fff"},{"path":"app/assets/index-BkTd7tXu.css","size":33806,"sha256":"1068be9ed803b2508543cabfa45b1fbfa6c83de67f75177317421d4d7e8e6e80"},{"path":"app/assets/jobs-CWtsu3mc.js","size":4421,"sha256":"64c1c43b5d4035b426b56b324ecccf8d148e1a4fe1a8104923e8482ebd6fd596"},{"path":"app/assets/jszip.min-BaGlcrtI.js","size":97058,"sha256":"6a8c2105c34a7746dc565eec47a1d617c62aad69484dcc0162c8850bc589364f"},{"path":"app/assets/MangaCreateView-BrOJAAUs.css","size":4918,"sha256":"68f80f669dcf655744c2aafffc0da0f5fa11f101b057706bb8f72b8ad3592336"},{"path":"app/assets/MangaCreateView-Do5d-bWo.js","size":8789,"sha256":"b93193df12e7d012f2659d56e97e26d6ca4ac38796f1aa5e1b06d13a075c66ab"},{"path":"app/assets/novel-DyP-L59w.js","size":38182,"sha256":"f6e17e0c0d42c1b9f1c81082d8343a80088c0831571f8a09e5360a344ecb501d"},{"path":"app/assets/novel-idea-BKMGGW0-.js","size":1816,"sha256":"2fd484229ef21d8f8cc3ee6694d63c75291d55475f0d6d87a2efd223ed46ca8d"},{"path":"app/assets/NovelBlueprintView-C1e4DUrr.css","size":14596,"sha256":"00116e9758b2fd37f6fe5305acf0340189f422f06e89cfaff97993f168c8cff4"},{"path":"app/assets/NovelBlueprintView-DWnYLPJh.js","size":24712,"sha256":"b340d43fdfb9e97e423a8b82a1dcd64002e7a582565afc4539ae28a1536e38ba"},{"path":"app/assets/NovelCreateView-B825Aerm.js","size":5004,"sha256":"5e46154a44139af8824933cb170f9f61d893ed8b97a4d36a1066d7135ccfda48"},{"path":"app/assets/NovelCreateView-CE8Crm5g.css","size":4016,"sha256":"99c02c0f46378b2286cca431e48383f872579024929eb5661d5e7d7a3eca49b2"},{"path":"app/assets/NovelEditorView-B0c3UPYS.css","size":25350,"sha256":"73bcbeb5eb230022d1524179129af1d44a72dd62f366df9ab8c079a077fcffdf"},{"path":"app/assets/NovelEditorView-Ddh0TJYk.js","size":37806,"sha256":"d636bf2fa07e81f6b3ad7b4ac4d28ea505f6c4add0033b541e3bd581b712a35b"},{"path":"app/assets/NovelNewProjectView-Dvxgle7_.css","size":9868,"sha256":"e6b66f08586e0f2a973b72ac0d9b7dbf0c3be6ec2c945ce83f623c44a0ee4d74"},{"path":"app/assets/NovelNewProjectView-kYox319-.js","size":13380,"sha256":"e892c985aafa4d1f10262f26a6ef58a6393b286a5e6f30fb420e6fbd0b026673"},{"path":"app/assets/NovelNextEditorView-4wgQSQSv.js","size":21348,"sha256":"4bbc98cb114e66449f723c711ae235a381853bb4c6ead684a66dcb48bb7ff8a1"},{"path":"app/assets/NovelNextEditorView-BTeh7Ibl.css","size":11911,"sha256":"cea7810700f2a5ab95dbcac87822540f445b4dfa3256ce9a5b855c43350b45bc"},{"path":"app/assets/NovelNextHomeView-BdNGLQgg.js","size":6023,"sha256":"f4d3eb07ca99538bf99f562d29ff6cc7c6ceae101c622d3e5f632b7e1781039a"},{"path":"app/assets/NovelNextHomeView-NuLt-dzG.css","size":10022,"sha256":"b3f1958f0d80b6ce772e2319574ebf39af84cf5be1da451454f4d04031bed64f"},{"path":"app/assets/NovelNextNewProjectView-CPzFt5gv.css","size":7851,"sha256":"521f7f8de0516897168df80e141c6212b2fdfcc3c93de21348ec21ed7945caab"},{"path":"app/assets/NovelNextNewProjectView-DMet94u6.js","size":9475,"sha256":"5c6aae220affbefb39254e3e52b8c100d12f51225d0ab1c96b4554e1b60fb3dd"},{"path":"app/assets/NovelNextPromptsView-Dp7odgpZ.js","size":4962,"sha256":"589e999edabba4f8f128e0a2250ed9d3bb383d8a9e1ec39a88e521a260d9d00b"},{"path":"app/assets/NovelNextPromptsView-Q9QO9knX.css","size":5586,"sha256":"2adad03fdffcc7f0a3c5d86e776c319f4343264bbfb8145ae98adbdd0b407edd"},{"path":"app/assets/NovelNextStudioView-Be0_9BOJ.css","size":51611,"sha256":"a880b94e2cf9858ad1c29ee2d48fb3b81fa1c601a7de31aad917c33c731bf2f7"},{"path":"app/assets/NovelNextStudioView-Ccv3VAZo.js","size":84718,"sha256":"1e647eb1ccc8ab4d406ca7e590a6fdc5544cdc40254f91dcc30ef9a0bebfe785"},{"path":"app/assets/NovelStudioView-DOjwyYYa.js","size":18095,"sha256":"a91b6d15beab2de7e504aeb3ec934cb4600dc77a83b9773213e059c12e0ccd6f"},{"path":"app/assets/NovelStudioView-Q6OCx67Z.css","size":17230,"sha256":"7695e82b5d3a59b397a4ad41ce6320b1a9e79de1f928a3a5a25b6d30b3fe4bd0"},{"path":"app/assets/platformProfileHelpers-DFIp46nS.js","size":3918,"sha256":"75bad521920256f9863a0b287c516a2d7ce0c2ccf9e1b28d6b23dafedddd3b95"},{"path":"app/assets/platformProfilesIo-CPVZDqOs.js","size":25178,"sha256":"e17bb402e3ede9407f084b187b036932bf87678472de58da98cebde5cd101d55"},{"path":"app/assets/ScriptStoryboardView-C7UCA0iS.css","size":5529,"sha256":"bbc707a58f29024daa22d5afa0359bab34777c991ac8b722648532de3f29b15f"},{"path":"app/assets/ScriptStoryboardView-ld-HmD8w.js","size":11127,"sha256":"825cdbf29a29153e7c7b02593fb3ef7dea5595cccfe2ff77f3227e527ead79c8"},{"path":"app/assets/ScriptViewDialog-C7cDlLvy.css","size":6350,"sha256":"c25cefe12bb105a6549dc0a5b9e6373b6e9a390e2c6f8d7b0397a48bbe50556f"},{"path":"app/assets/ScriptViewDialog-W-1Vw6Pa.js","size":3862,"sha256":"4e1516e72611f02b9a4b385dca10d722d4975db02bb6b2752f32535b202a4712"},{"path":"app/assets/SmartVoiceDubbingView-Csbl1FAD.css","size":4199,"sha256":"107177e6f77e8ef5e6e27b6e2a24bcfabf48005f27ef7c52cc4769ed8f4f634f"},{"path":"app/assets/SmartVoiceDubbingView-qTMaKV9Y.js","size":10868,"sha256":"4a77ab25397cfa8bcf8b1cb45cfd22dab50732a69898b218bd4d31b69d8c394f"},{"path":"app/assets/SoftwareSettingView-6L4HV6Cj.css","size":42949,"sha256":"057868cdbd54834690b55a96f43888b5ac278f21590c1da6f4945d849b53d7d9"},{"path":"app/assets/SoftwareSettingView-Cc0TKEsZ.js","size":147054,"sha256":"fb98c30fedad73f8a121f2f22fb41992d7582d3089dbb70935a9b9ffc6ef259f"},{"path":"app/assets/StoryboardWorkbenchView-BEsnD981.css","size":183441,"sha256":"cbba29c367381ea60af5f5e6a592bc4eeedde29e341a38962f1afe64e4ae3134"},{"path":"app/assets/StoryboardWorkbenchView-CD3VF2eP.js","size":780386,"sha256":"61aa33b9f32ef515105f3d6128a5958eea0c92e7830413f7e988895a91b494ee"},{"path":"app/assets/style-panel-v2.js","size":34945,"sha256":"95a1d806d0b43abcaf9f38e6cc7122e3444f1c4cc6115997454f4d66e96bf704"},{"path":"app/assets/vendor-gradio-DEZB3hqo.js","size":40306,"sha256":"1a58bcc15383081bc7982463221f4a5672bf0c40629f7ca2cb4c87d7b754063d"},{"path":"app/assets/vendor-marked-D7nDcMSN.js","size":63475,"sha256":"ece26fc30a546bb05454258f6b90d5603f415d1facfe1b84fdf48969b94299f0"},{"path":"app/assets/vendor-pinia-X4ep_-6S.js","size":86039,"sha256":"837e98f5cad79e5899c75e5a238158c54a81a64047fb71f2f59b141fd07bc5d0"},{"path":"app/assets/vendor-tsparticles-YsQK4eZC.js","size":74319,"sha256":"4ef0adb3d599ece7a2a33e4c9068fead2b1bb9b357e9d6e5128102ddf4e1ab63"},{"path":"app/assets/voiceDubbingSettings-D7qrrUsf.js","size":4955,"sha256":"50fbbee9986499ad48a94eb2654dc09207bba0771509539d378fc4c856d9580d"},{"path":"app/assets/WorkCardList-3i9qKDZI.css","size":4160,"sha256":"d3f88a89920d7c479203354da8abe55aac0052aaa65c3035f12cf4e71d60aba4"},{"path":"app/assets/WorkCardList-BcGTAprs.js","size":3682,"sha256":"be8be9cb28440f5ea16d9401a772f388253e1a193d11192e2594d20d476367a5"},{"path":"app/assets/__vite-browser-external-DYxpcVy9-BIHI7g3E.js","size":33,"sha256":"82507b0bb9ac4affaeb17c40968d830cbd6d14a2ffa04d8994faf1a78e58e1b5"},{"path":"app/dev-badge.js","size":6945,"sha256":"436c20d350a15889fabb103406d379f81e87709b8a7c7254a83794d052928f76"},{"path":"app/index.html","size":8636,"sha256":"c026a3b3a829fa90a02b1f4520da3b1555efbc3fba5f06e2bb7f578dc5c3486a"},{"path":"app/localproxy-hook.js","size":2211,"sha256":"d63af26648dc95c2eb5599afb20b1e1745b1162e4dc41d337a907447f9f9aff5"},{"path":"app/update-badge.js","size":11156,"sha256":"7aa1816baafdbaf897faca55ef1823da355d67731ae46859f75637788ef94e80"},{"path":"data/custom-instructions.json","size":636490,"sha256":"fac8202b6e40a328f260a105344838d5b6c51b3c8ad0a9cd558e72de3dbc9719"},{"path":"data/local-prompts.json","size":734303,"sha256":"84bb8514cceb0551471baef6b319f04650d09d23bce813b8dfebdb845b0e4a43"},{"path":"data/settings.seed.json","size":587525,"sha256":"29fa9c3da992b627370f9b91df85680b62e9c02503bdd9f30fdb370199fae7ce"},{"path":"electron/asset-match.cjs","size":1671,"sha256":"facbeaa1c1fdd893a46c3d95a79448ec806808bb4c1fb4e112cfa757928f3883"},{"path":"electron/asset-repair.cjs","size":49097,"sha256":"942568d56dbae4897bf9e589fa05320d3f55824e7eba74d03d12dde94b2a37ec"},{"path":"electron/dev-mode.cjs","size":4777,"sha256":"a89fa3f9ba74317df10f5b6c48406e1863f11344d810a5ed5d489c9dd6a948db"},{"path":"electron/doubao-helper.cjs","size":12831,"sha256":"119ebab2d24a18c8cb4e6a5c93456fc0b7e4e8c8ef386b35eee66c589646b4c3"},{"path":"electron/episode-isolation.cjs","size":8462,"sha256":"060922b33d4b1e0a4c12427c45799f7e4514fe575525d144ce93a3d9a08b7b3a"},{"path":"electron/gemini-shim.cjs","size":4486,"sha256":"78fc2917674440145b70eeffe67328992013cc62621e231971247df3310eb7f4"},{"path":"electron/image-rescue.cjs","size":10649,"sha256":"0a3fe50e8514dbe9ac129975aa729f644e63e8b9a0cc8c803af08e5ecc9889e5"},{"path":"electron/main.cjs","size":128626,"sha256":"a6f602ce66538a75f9fa8a7c4a16997a95bcc71dd598e1876fb46639b1f923d5"},{"path":"electron/preload.cjs","size":8696,"sha256":"4378ec94c7b5363b6fc660a15a5655631b7fac6d912d2a6bf5cd05affc6656fe"},{"path":"electron/prompt-builders.cjs","size":18364,"sha256":"d732cc54d3a7e18a28af38875aa7c5efbb5aa2ca8e9a4287a593f83b324b6200"},{"path":"electron/updater-core.cjs","size":9801,"sha256":"12710447c183bd7f711f7540f0e8d3475dd9107c35e6c962bd7f748a70a4d1f5"},{"path":"electron/updater.cjs","size":20005,"sha256":"5f6c6260370e007fa3d23df32cb0e5fd6caf6aeb54b5ba40d917702bbfb49e8b"},{"path":"package.json","size":1693,"sha256":"f80e9d4641f056cfa350d5f5b3ad606bd1ff855141888252a220aac97ed970dd"},{"path":"tools/gen-update-config.cjs","size":3661,"sha256":"d7d8cc8200edb74ee100e57bc13d325b8014d25780e4d80c28a754b2e705fb25"},{"path":"tools/publish-hotfix.cjs","size":8639,"sha256":"ad636478c7808d167f42ad8050c9ee8a641ac8d8c190268247fe50d350f66068"},{"path":"tools/video-gateway.cjs","size":49481,"sha256":"3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"}],"sig":"b1a8aa94b8aa419d74712ec5c1b3d6665f7604b6f8d995bac6e98c6c7fa702d8"}
+{
+  "version": "1.0.24",
+  "notes": "1.0.24：新增/重写分镜时，本集首次出现的场景、道具若无描述，自动从分镜提示词提取兜底描述（标注[自动提取]），不再出现整列空白",
+  "pubDate": "2026-11-16T13:20:32.158Z",
+  "fileBase": "files/",
+  "files": [
+    {
+      "path": "app/asset-name-guard.js",
+      "size": 8614,
+      "sha256": "527b117039e50d3571e01eaab3ad886d90a98496b19abfaefdda3320bfd81fbd"
+    },
+    {
+      "path": "app/assets/banana-B3i94Uiq.js",
+      "size": 12856,
+      "sha256": "bfbfe5790a672527ed92ee622ada32fef7e5fce299bd8c7beca63564b66ccabb"
+    },
+    {
+      "path": "app/assets/ChatRoomView-7J_R9yzs.css",
+      "size": 33667,
+      "sha256": "4ab2102c205e44f30b7950fbcee28ab25b7e8a5a86ee382bd125b4654f8c7075"
+    },
+    {
+      "path": "app/assets/ChatRoomView-BEHWzUiz.js",
+      "size": 2226805,
+      "sha256": "d841fa1746bd102f5a1582c40d3852a1401cb1c8847b154044a6474be5dec445"
+    },
+    {
+      "path": "app/assets/chatSkills-CcRzo5Df.js",
+      "size": 876054,
+      "sha256": "0d4e2c3274fca00ef3acb959c137970a3c9cd40231773e359fe66a30eb705c9c"
+    },
+    {
+      "path": "app/assets/chatSkills-f79ahihU.css",
+      "size": 4901,
+      "sha256": "eec67be074ca86f88388c84e556c61a7e86e0ae5f3f15fed48c156257b640884"
+    },
+    {
+      "path": "app/assets/CoverGenerateView-Cul3vmWY.css",
+      "size": 37949,
+      "sha256": "33c3b5c55eefd7d5561521b3372e47fcdfc40b5da4d4dfe6356817e623646f6e"
+    },
+    {
+      "path": "app/assets/CoverGenerateView-DcUETtzj.js",
+      "size": 34592,
+      "sha256": "a393e7f550fa9e7537c2f63f5db34ecd39d36cddf93780f681090c9f2beeab59"
+    },
+    {
+      "path": "app/assets/DoubaoWorkbenchView-DaTSxDZR.js",
+      "size": 27170,
+      "sha256": "63b6c5046d4652d9644546ef58cd87740d4cf131fb889954ca94463ff8c99b6f"
+    },
+    {
+      "path": "app/assets/DoubaoWorkbenchView-nmkGv5Kf.css",
+      "size": 14672,
+      "sha256": "ee9fd36667814d7d4effc304f350b99c31b830ad64528a15b0442e9e43478f5f"
+    },
+    {
+      "path": "app/assets/EpisodeListView-ByxoZ2xy.js",
+      "size": 4863,
+      "sha256": "838e6d30f9a944fe0886ccf613f6013276f3b7e033b6fdd75b3a4c7d234acf7f"
+    },
+    {
+      "path": "app/assets/EpisodeListView-CLbKiA3W.css",
+      "size": 2939,
+      "sha256": "6e23d8ebc06ac5d75f579d15a973c686e292b05ec22f6ac019711a38d4a7b66e"
+    },
+    {
+      "path": "app/assets/FileSaver.min-CZYxb4hK.js",
+      "size": 2634,
+      "sha256": "1874078b06efb587748420e7d4fe92c4e93e3a2026305a3be377f41969e46575"
+    },
+    {
+      "path": "app/assets/index--A2QUzi9.js",
+      "size": 852957,
+      "sha256": "cb752b2cd1f8952d2048036891136aa246667d392f20cb981a02bf20cdb65fff"
+    },
+    {
+      "path": "app/assets/index-BkTd7tXu.css",
+      "size": 33806,
+      "sha256": "1068be9ed803b2508543cabfa45b1fbfa6c83de67f75177317421d4d7e8e6e80"
+    },
+    {
+      "path": "app/assets/jobs-CWtsu3mc.js",
+      "size": 4421,
+      "sha256": "64c1c43b5d4035b426b56b324ecccf8d148e1a4fe1a8104923e8482ebd6fd596"
+    },
+    {
+      "path": "app/assets/jszip.min-BaGlcrtI.js",
+      "size": 97058,
+      "sha256": "6a8c2105c34a7746dc565eec47a1d617c62aad69484dcc0162c8850bc589364f"
+    },
+    {
+      "path": "app/assets/MangaCreateView-BrOJAAUs.css",
+      "size": 4918,
+      "sha256": "68f80f669dcf655744c2aafffc0da0f5fa11f101b057706bb8f72b8ad3592336"
+    },
+    {
+      "path": "app/assets/MangaCreateView-Do5d-bWo.js",
+      "size": 8789,
+      "sha256": "b93193df12e7d012f2659d56e97e26d6ca4ac38796f1aa5e1b06d13a075c66ab"
+    },
+    {
+      "path": "app/assets/novel-DyP-L59w.js",
+      "size": 38182,
+      "sha256": "f6e17e0c0d42c1b9f1c81082d8343a80088c0831571f8a09e5360a344ecb501d"
+    },
+    {
+      "path": "app/assets/novel-idea-BKMGGW0-.js",
+      "size": 1816,
+      "sha256": "2fd484229ef21d8f8cc3ee6694d63c75291d55475f0d6d87a2efd223ed46ca8d"
+    },
+    {
+      "path": "app/assets/NovelBlueprintView-C1e4DUrr.css",
+      "size": 14596,
+      "sha256": "00116e9758b2fd37f6fe5305acf0340189f422f06e89cfaff97993f168c8cff4"
+    },
+    {
+      "path": "app/assets/NovelBlueprintView-DWnYLPJh.js",
+      "size": 24712,
+      "sha256": "b340d43fdfb9e97e423a8b82a1dcd64002e7a582565afc4539ae28a1536e38ba"
+    },
+    {
+      "path": "app/assets/NovelCreateView-B825Aerm.js",
+      "size": 5004,
+      "sha256": "5e46154a44139af8824933cb170f9f61d893ed8b97a4d36a1066d7135ccfda48"
+    },
+    {
+      "path": "app/assets/NovelCreateView-CE8Crm5g.css",
+      "size": 4016,
+      "sha256": "99c02c0f46378b2286cca431e48383f872579024929eb5661d5e7d7a3eca49b2"
+    },
+    {
+      "path": "app/assets/NovelEditorView-B0c3UPYS.css",
+      "size": 25350,
+      "sha256": "73bcbeb5eb230022d1524179129af1d44a72dd62f366df9ab8c079a077fcffdf"
+    },
+    {
+      "path": "app/assets/NovelEditorView-Ddh0TJYk.js",
+      "size": 37806,
+      "sha256": "d636bf2fa07e81f6b3ad7b4ac4d28ea505f6c4add0033b541e3bd581b712a35b"
+    },
+    {
+      "path": "app/assets/NovelNewProjectView-Dvxgle7_.css",
+      "size": 9868,
+      "sha256": "e6b66f08586e0f2a973b72ac0d9b7dbf0c3be6ec2c945ce83f623c44a0ee4d74"
+    },
+    {
+      "path": "app/assets/NovelNewProjectView-kYox319-.js",
+      "size": 13380,
+      "sha256": "e892c985aafa4d1f10262f26a6ef58a6393b286a5e6f30fb420e6fbd0b026673"
+    },
+    {
+      "path": "app/assets/NovelNextEditorView-4wgQSQSv.js",
+      "size": 21348,
+      "sha256": "4bbc98cb114e66449f723c711ae235a381853bb4c6ead684a66dcb48bb7ff8a1"
+    },
+    {
+      "path": "app/assets/NovelNextEditorView-BTeh7Ibl.css",
+      "size": 11911,
+      "sha256": "cea7810700f2a5ab95dbcac87822540f445b4dfa3256ce9a5b855c43350b45bc"
+    },
+    {
+      "path": "app/assets/NovelNextHomeView-BdNGLQgg.js",
+      "size": 6023,
+      "sha256": "f4d3eb07ca99538bf99f562d29ff6cc7c6ceae101c622d3e5f632b7e1781039a"
+    },
+    {
+      "path": "app/assets/NovelNextHomeView-NuLt-dzG.css",
+      "size": 10022,
+      "sha256": "b3f1958f0d80b6ce772e2319574ebf39af84cf5be1da451454f4d04031bed64f"
+    },
+    {
+      "path": "app/assets/NovelNextNewProjectView-CPzFt5gv.css",
+      "size": 7851,
+      "sha256": "521f7f8de0516897168df80e141c6212b2fdfcc3c93de21348ec21ed7945caab"
+    },
+    {
+      "path": "app/assets/NovelNextNewProjectView-DMet94u6.js",
+      "size": 9475,
+      "sha256": "5c6aae220affbefb39254e3e52b8c100d12f51225d0ab1c96b4554e1b60fb3dd"
+    },
+    {
+      "path": "app/assets/NovelNextPromptsView-Dp7odgpZ.js",
+      "size": 4962,
+      "sha256": "589e999edabba4f8f128e0a2250ed9d3bb383d8a9e1ec39a88e521a260d9d00b"
+    },
+    {
+      "path": "app/assets/NovelNextPromptsView-Q9QO9knX.css",
+      "size": 5586,
+      "sha256": "2adad03fdffcc7f0a3c5d86e776c319f4343264bbfb8145ae98adbdd0b407edd"
+    },
+    {
+      "path": "app/assets/NovelNextStudioView-Be0_9BOJ.css",
+      "size": 51611,
+      "sha256": "a880b94e2cf9858ad1c29ee2d48fb3b81fa1c601a7de31aad917c33c731bf2f7"
+    },
+    {
+      "path": "app/assets/NovelNextStudioView-Ccv3VAZo.js",
+      "size": 84718,
+      "sha256": "1e647eb1ccc8ab4d406ca7e590a6fdc5544cdc40254f91dcc30ef9a0bebfe785"
+    },
+    {
+      "path": "app/assets/NovelStudioView-DOjwyYYa.js",
+      "size": 18095,
+      "sha256": "a91b6d15beab2de7e504aeb3ec934cb4600dc77a83b9773213e059c12e0ccd6f"
+    },
+    {
+      "path": "app/assets/NovelStudioView-Q6OCx67Z.css",
+      "size": 17230,
+      "sha256": "7695e82b5d3a59b397a4ad41ce6320b1a9e79de1f928a3a5a25b6d30b3fe4bd0"
+    },
+    {
+      "path": "app/assets/platformProfileHelpers-DFIp46nS.js",
+      "size": 3918,
+      "sha256": "75bad521920256f9863a0b287c516a2d7ce0c2ccf9e1b28d6b23dafedddd3b95"
+    },
+    {
+      "path": "app/assets/platformProfilesIo-CPVZDqOs.js",
+      "size": 25178,
+      "sha256": "e17bb402e3ede9407f084b187b036932bf87678472de58da98cebde5cd101d55"
+    },
+    {
+      "path": "app/assets/ScriptStoryboardView-C7UCA0iS.css",
+      "size": 5529,
+      "sha256": "bbc707a58f29024daa22d5afa0359bab34777c991ac8b722648532de3f29b15f"
+    },
+    {
+      "path": "app/assets/ScriptStoryboardView-ld-HmD8w.js",
+      "size": 11127,
+      "sha256": "825cdbf29a29153e7c7b02593fb3ef7dea5595cccfe2ff77f3227e527ead79c8"
+    },
+    {
+      "path": "app/assets/ScriptViewDialog-C7cDlLvy.css",
+      "size": 6350,
+      "sha256": "c25cefe12bb105a6549dc0a5b9e6373b6e9a390e2c6f8d7b0397a48bbe50556f"
+    },
+    {
+      "path": "app/assets/ScriptViewDialog-W-1Vw6Pa.js",
+      "size": 3862,
+      "sha256": "4e1516e72611f02b9a4b385dca10d722d4975db02bb6b2752f32535b202a4712"
+    },
+    {
+      "path": "app/assets/SmartVoiceDubbingView-Csbl1FAD.css",
+      "size": 4199,
+      "sha256": "107177e6f77e8ef5e6e27b6e2a24bcfabf48005f27ef7c52cc4769ed8f4f634f"
+    },
+    {
+      "path": "app/assets/SmartVoiceDubbingView-qTMaKV9Y.js",
+      "size": 10868,
+      "sha256": "4a77ab25397cfa8bcf8b1cb45cfd22dab50732a69898b218bd4d31b69d8c394f"
+    },
+    {
+      "path": "app/assets/SoftwareSettingView-6L4HV6Cj.css",
+      "size": 42949,
+      "sha256": "057868cdbd54834690b55a96f43888b5ac278f21590c1da6f4945d849b53d7d9"
+    },
+    {
+      "path": "app/assets/SoftwareSettingView-Cc0TKEsZ.js",
+      "size": 147054,
+      "sha256": "fb98c30fedad73f8a121f2f22fb41992d7582d3089dbb70935a9b9ffc6ef259f"
+    },
+    {
+      "path": "app/assets/StoryboardWorkbenchView-BEsnD981.css",
+      "size": 183441,
+      "sha256": "cbba29c367381ea60af5f5e6a592bc4eeedde29e341a38962f1afe64e4ae3134"
+    },
+    {
+      "path": "app/assets/StoryboardWorkbenchView-CD3VF2eP.js",
+      "size": 780386,
+      "sha256": "61aa33b9f32ef515105f3d6128a5958eea0c92e7830413f7e988895a91b494ee"
+    },
+    {
+      "path": "app/assets/style-panel-v2.js",
+      "size": 34945,
+      "sha256": "95a1d806d0b43abcaf9f38e6cc7122e3444f1c4cc6115997454f4d66e96bf704"
+    },
+    {
+      "path": "app/assets/vendor-gradio-DEZB3hqo.js",
+      "size": 40306,
+      "sha256": "1a58bcc15383081bc7982463221f4a5672bf0c40629f7ca2cb4c87d7b754063d"
+    },
+    {
+      "path": "app/assets/vendor-marked-D7nDcMSN.js",
+      "size": 63475,
+      "sha256": "ece26fc30a546bb05454258f6b90d5603f415d1facfe1b84fdf48969b94299f0"
+    },
+    {
+      "path": "app/assets/vendor-pinia-X4ep_-6S.js",
+      "size": 86039,
+      "sha256": "837e98f5cad79e5899c75e5a238158c54a81a64047fb71f2f59b141fd07bc5d0"
+    },
+    {
+      "path": "app/assets/vendor-tsparticles-YsQK4eZC.js",
+      "size": 74319,
+      "sha256": "4ef0adb3d599ece7a2a33e4c9068fead2b1bb9b357e9d6e5128102ddf4e1ab63"
+    },
+    {
+      "path": "app/assets/voiceDubbingSettings-D7qrrUsf.js",
+      "size": 4955,
+      "sha256": "50fbbee9986499ad48a94eb2654dc09207bba0771509539d378fc4c856d9580d"
+    },
+    {
+      "path": "app/assets/WorkCardList-3i9qKDZI.css",
+      "size": 4160,
+      "sha256": "d3f88a89920d7c479203354da8abe55aac0052aaa65c3035f12cf4e71d60aba4"
+    },
+    {
+      "path": "app/assets/WorkCardList-BcGTAprs.js",
+      "size": 3682,
+      "sha256": "be8be9cb28440f5ea16d9401a772f388253e1a193d11192e2594d20d476367a5"
+    },
+    {
+      "path": "app/assets/__vite-browser-external-DYxpcVy9-BIHI7g3E.js",
+      "size": 33,
+      "sha256": "82507b0bb9ac4affaeb17c40968d830cbd6d14a2ffa04d8994faf1a78e58e1b5"
+    },
+    {
+      "path": "app/dev-badge.js",
+      "size": 6945,
+      "sha256": "436c20d350a15889fabb103406d379f81e87709b8a7c7254a83794d052928f76"
+    },
+    {
+      "path": "app/index.html",
+      "size": 8636,
+      "sha256": "c026a3b3a829fa90a02b1f4520da3b1555efbc3fba5f06e2bb7f578dc5c3486a"
+    },
+    {
+      "path": "app/localproxy-hook.js",
+      "size": 2211,
+      "sha256": "d63af26648dc95c2eb5599afb20b1e1745b1162e4dc41d337a907447f9f9aff5"
+    },
+    {
+      "path": "app/update-badge.js",
+      "size": 11156,
+      "sha256": "7aa1816baafdbaf897faca55ef1823da355d67731ae46859f75637788ef94e80"
+    },
+    {
+      "path": "data/custom-instructions.json",
+      "size": 636490,
+      "sha256": "fac8202b6e40a328f260a105344838d5b6c51b3c8ad0a9cd558e72de3dbc9719"
+    },
+    {
+      "path": "data/local-prompts.json",
+      "size": 734303,
+      "sha256": "84bb8514cceb0551471baef6b319f04650d09d23bce813b8dfebdb845b0e4a43"
+    },
+    {
+      "path": "data/settings.seed.json",
+      "size": 587525,
+      "sha256": "29fa9c3da992b627370f9b91df85680b62e9c02503bdd9f30fdb370199fae7ce"
+    },
+    {
+      "path": "electron/asset-match.cjs",
+      "size": 1671,
+      "sha256": "facbeaa1c1fdd893a46c3d95a79448ec806808bb4c1fb4e112cfa757928f3883"
+    },
+    {
+      "path": "electron/asset-repair.cjs",
+      "size": 55162,
+      "sha256": "76be1bc441ec7f8e11495b7064dcacfad4765d9c9a999cdc7c82b9dd20837866"
+    },
+    {
+      "path": "electron/dev-mode.cjs",
+      "size": 4777,
+      "sha256": "a89fa3f9ba74317df10f5b6c48406e1863f11344d810a5ed5d489c9dd6a948db"
+    },
+    {
+      "path": "electron/doubao-helper.cjs",
+      "size": 12831,
+      "sha256": "119ebab2d24a18c8cb4e6a5c93456fc0b7e4e8c8ef386b35eee66c589646b4c3"
+    },
+    {
+      "path": "electron/episode-isolation.cjs",
+      "size": 8462,
+      "sha256": "060922b33d4b1e0a4c12427c45799f7e4514fe575525d144ce93a3d9a08b7b3a"
+    },
+    {
+      "path": "electron/gemini-shim.cjs",
+      "size": 4486,
+      "sha256": "78fc2917674440145b70eeffe67328992013cc62621e231971247df3310eb7f4"
+    },
+    {
+      "path": "electron/image-rescue.cjs",
+      "size": 10649,
+      "sha256": "0a3fe50e8514dbe9ac129975aa729f644e63e8b9a0cc8c803af08e5ecc9889e5"
+    },
+    {
+      "path": "electron/main.cjs",
+      "size": 129942,
+      "sha256": "6762077aef8543c24166dfa0f89230dbcee85eb53dff50af0e05189a09cab33d"
+    },
+    {
+      "path": "electron/preload.cjs",
+      "size": 8696,
+      "sha256": "4378ec94c7b5363b6fc660a15a5655631b7fac6d912d2a6bf5cd05affc6656fe"
+    },
+    {
+      "path": "electron/prompt-builders.cjs",
+      "size": 18364,
+      "sha256": "d732cc54d3a7e18a28af38875aa7c5efbb5aa2ca8e9a4287a593f83b324b6200"
+    },
+    {
+      "path": "electron/updater-core.cjs",
+      "size": 9801,
+      "sha256": "12710447c183bd7f711f7540f0e8d3475dd9107c35e6c962bd7f748a70a4d1f5"
+    },
+    {
+      "path": "electron/updater.cjs",
+      "size": 20005,
+      "sha256": "5f6c6260370e007fa3d23df32cb0e5fd6caf6aeb54b5ba40d917702bbfb49e8b"
+    },
+    {
+      "path": "package.json",
+      "size": 1693,
+      "sha256": "19015b2e7c153a9169982237c257e1dee246d95fcf149bc047cb7df74cfe6dc3"
+    },
+    {
+      "path": "tools/gen-update-config.cjs",
+      "size": 3661,
+      "sha256": "d7d8cc8200edb74ee100e57bc13d325b8014d25780e4d80c28a754b2e705fb25"
+    },
+    {
+      "path": "tools/publish-hotfix.cjs",
+      "size": 8639,
+      "sha256": "ad636478c7808d167f42ad8050c9ee8a641ac8d8c190268247fe50d350f66068"
+    },
+    {
+      "path": "tools/video-gateway.cjs",
+      "size": 49481,
+      "sha256": "3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"
+    }
+  ],
+  "sig": "123ecbd4329559995c1556b789f6b928ee23786063d01ab401e88c85660edfb0"
+}
