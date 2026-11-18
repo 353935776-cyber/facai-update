@@ -1111,7 +1111,7 @@ function toLocalFilePath(raw) {
   }
   return { ok: true, path: s };
 }
-handle('asset:revealInFolder', async (arg) => {
+async function revealInFolder(arg) {
   const r = toLocalFilePath(arg);
   if (!r.ok) return { success: false, message: r.message };
   const target = r.path;
@@ -1131,7 +1131,8 @@ handle('asset:revealInFolder', async (arg) => {
   } catch (err) {
     return { success: false, message: String((err && err.message) || err) };
   }
-});
+}
+handle('asset:revealInFolder', (arg) => revealInFolder(arg));
 /* asset.download({url,kind,entityId}) → {success,data:{filePath}}；importLocal({sourcePath,...}) 同理 */
 function assetDir(kind, entityId) {
   const safe = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, '_').replace(/^\.+/, '') || 'misc';
