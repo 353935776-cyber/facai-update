@@ -1,7 +1,7 @@
 {
   "version": "1.0.25",
   "notes": "1.0.25：修复「打开文件目录 / 打开目录」必定失败的问题（前后端参数与返回值不匹配），本地图片、视频、音频均可正确定位",
-  "pubDate": "2026-11-18T16:02:46.893Z",
+  "pubDate": "2026-11-18T16:05:14.002Z",
   "fileBase": "files/",
   "files": [
     {
@@ -386,8 +386,8 @@
     },
     {
       "path": "electron/main.cjs",
-      "size": 132214,
-      "sha256": "6586dc49b95baab651ee2d159f1dedd9a5ac5fa55afc697a81f889b5d43aa548"
+      "size": 132263,
+      "sha256": "531173035a48b0180d07344a1ba7969242044fb1a0c2cf11f3a5881a8e6f84f8"
     },
     {
       "path": "electron/preload.cjs",
@@ -430,5 +430,5 @@
       "sha256": "3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"
     }
   ],
-  "sig": "d793e8792539a24cfd102826cec52c9c56b83b873bf8e873b26c8bc25299d733"
+  "sig": "b4c8b17f8f461ccfa79492b420956015bb60597f168ef70b9f30fc1ae408ddfc"
 }
