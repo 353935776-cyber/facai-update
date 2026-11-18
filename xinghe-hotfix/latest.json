@@ -1,7 +1,7 @@
 {
-  "version": "1.0.24",
-  "notes": "1.0.24：新增/重写分镜时，本集首次出现的场景、道具若无描述，自动从分镜提示词提取兜底描述（标注[自动提取]），不再出现整列空白",
-  "pubDate": "2026-11-16T13:20:32.158Z",
+  "version": "1.0.25",
+  "notes": "1.0.25：修复「打开文件目录 / 打开目录」必定失败的问题（前后端参数与返回值不匹配），本地图片、视频、音频均可正确定位",
+  "pubDate": "2026-11-18T16:02:46.893Z",
   "fileBase": "files/",
   "files": [
     {
@@ -386,8 +386,8 @@
     },
     {
       "path": "electron/main.cjs",
-      "size": 129942,
-      "sha256": "6762077aef8543c24166dfa0f89230dbcee85eb53dff50af0e05189a09cab33d"
+      "size": 132214,
+      "sha256": "6586dc49b95baab651ee2d159f1dedd9a5ac5fa55afc697a81f889b5d43aa548"
     },
     {
       "path": "electron/preload.cjs",
@@ -412,7 +412,7 @@
     {
       "path": "package.json",
       "size": 1693,
-      "sha256": "19015b2e7c153a9169982237c257e1dee246d95fcf149bc047cb7df74cfe6dc3"
+      "sha256": "5b7ee1fb7dcaeb4d1b85d007e59612adf4ace2878303e3874d2d50ff6b3e7e7d"
     },
     {
       "path": "tools/gen-update-config.cjs",
@@ -430,5 +430,5 @@
       "sha256": "3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"
     }
   ],
-  "sig": "123ecbd4329559995c1556b789f6b928ee23786063d01ab401e88c85660edfb0"
+  "sig": "d793e8792539a24cfd102826cec52c9c56b83b873bf8e873b26c8bc25299d733"
 }
