@@ -1080,7 +1080,58 @@ handle('doubao:getPath', () => doubaoHelper.getConfig());
 handle('doubao:openFolder', async () => {
   try { await shell.openPath(doubaoHelper.getConfig().dataDir); return true; } catch { return false; }
 });
-handle('asset:revealInFolder', (p) => { try { shell.showItemInFolder(String(p)); } catch { /* ignore */ } return true; });
+/* 前端调用是 revealInFolder({filePath}) 且判定返回值里的 success；
+ * 旧实现按字符串接收、只返回 true → 每次点「打开文件目录/打开目录」都弹「打开目录失败」。
+ * 这里统一解析 xingyuan-file://、file://、绝对路径、带 ?cv= 缓存参数、数据目录相对路径，
+ * 再按「文件 → 定位文件；目录 → 打开目录；文件已不在 → 打开父目录」处理。 */
+function toLocalFilePath(raw) {
+  let s = (raw && typeof raw === 'object')
+    ? String(raw.filePath || raw.path || raw.url || raw.src || '')
+    : String(raw == null ? '' : raw);
+  s = s.trim();
+  if (!s) return { ok: false, message: '未获取到文件路径' };
+  if (/^https?:\/\//i.test(s)) return { ok: false, message: '这是网络文件，没有本地目录' };
+  if (/^xingyuan-file:/i.test(s)) {
+    s = resolveXingyuanPath(s) || '';
+    if (!s) return { ok: false, message: '无法解析本地路径' };
+  } else {
+    const q = s.search(/[?#]/);
+    if (q >= 0) s = s.slice(0, q);
+    if (/^file:\/\//i.test(s)) {
+      s = s.replace(/^file:\/{1,3}/i, '');
+      try { s = decodeURIComponent(s); } catch { /* 保留原样 */ }
+      if (/^\/[A-Za-z]:/.test(s)) s = s.slice(1);
+    }
+    s = s.replace(/\//g, '\\');
+  }
+  if (!path.isAbsolute(s)) {
+    const cands = [path.join(DATA_DIR, s), path.join(DATA_DIR, 'assets', s), path.join(APP_ROOT, s)];
+    const hit = cands.find((c) => { try { return fs.existsSync(c); } catch { return false; } });
+    s = hit || cands[0];
+  }
+  return { ok: true, path: s };
+}
+handle('asset:revealInFolder', async (arg) => {
+  const r = toLocalFilePath(arg);
+  if (!r.ok) return { success: false, message: r.message };
+  const target = r.path;
+  try {
+    if (fs.existsSync(target)) {
+      const st = fs.statSync(target);
+      if (st.isDirectory()) { await shell.openPath(target); return { success: true, path: target }; }
+      shell.showItemInFolder(target);
+      return { success: true, path: target };
+    }
+    const parent = path.dirname(target);
+    if (fs.existsSync(parent)) {
+      await shell.openPath(parent);
+      return { success: true, path: parent, message: '文件已不在，已打开所在目录' };
+    }
+    return { success: false, message: '目录不存在：' + parent };
+  } catch (err) {
+    return { success: false, message: String((err && err.message) || err) };
+  }
+});
 /* asset.download({url,kind,entityId}) → {success,data:{filePath}}；importLocal({sourcePath,...}) 同理 */
 function assetDir(kind, entityId) {
   const safe = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, '_').replace(/^\.+/, '') || 'misc';
