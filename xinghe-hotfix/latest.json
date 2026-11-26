@@ -1,7 +1,7 @@
 {
-  "version": "1.0.25",
-  "notes": "1.0.25：修复「打开文件目录 / 打开目录」必定失败的问题（前后端参数与返回值不匹配），本地图片、视频、音频均可正确定位",
-  "pubDate": "2026-11-18T16:05:14.002Z",
+  "version": "1.0.27",
+  "notes": "1.0.27：修复「场景/道具/角色描述空白」——仅出现在【本组资产】清单行、正文只用简称的实体改为别名匹配（全名/去量词/分段/词尾），并补充「本集出场镜头、同场角色、所在场景、视觉基调」等结构化事实；同时包含 1.0.26 的剪映整集合成：剪映 6.0+ 草稿已加密、第三方明文草稿无法识别，改为导出分镜后自动按镜头顺序合成整集 MP4（参数一致无损直拼，不一致自动统一转码），成片落在剪映草稿根目录，可直接拖入剪映精修",
+  "pubDate": "2026-11-26T10:07:38.261Z",
   "fileBase": "files/",
   "files": [
     {
@@ -266,8 +266,8 @@
     },
     {
       "path": "app/assets/StoryboardWorkbenchView-CD3VF2eP.js",
-      "size": 780386,
-      "sha256": "61aa33b9f32ef515105f3d6128a5958eea0c92e7830413f7e988895a91b494ee"
+      "size": 780973,
+      "sha256": "92212f2686bb224e81927b024fbc9d8297c842bd65e93b7f59daabc2036cd871"
     },
     {
       "path": "app/assets/style-panel-v2.js",
@@ -356,8 +356,8 @@
     },
     {
       "path": "electron/asset-repair.cjs",
-      "size": 55162,
-      "sha256": "76be1bc441ec7f8e11495b7064dcacfad4765d9c9a999cdc7c82b9dd20837866"
+      "size": 60284,
+      "sha256": "af875163d55cf4d0a159ab25bff253404372083f0edf1aa2c0fe9e501d8d03b2"
     },
     {
       "path": "electron/dev-mode.cjs",
@@ -386,13 +386,13 @@
     },
     {
       "path": "electron/main.cjs",
-      "size": 132263,
-      "sha256": "531173035a48b0180d07344a1ba7969242044fb1a0c2cf11f3a5881a8e6f84f8"
+      "size": 134246,
+      "sha256": "c9e613311bb92edc21a059547242d130b61009ade5b3c469dad3049ec7287d7a"
     },
     {
       "path": "electron/preload.cjs",
-      "size": 8696,
-      "sha256": "4378ec94c7b5363b6fc660a15a5655631b7fac6d912d2a6bf5cd05affc6656fe"
+      "size": 8994,
+      "sha256": "da503cbe03fe32467519edbe1595466b8183c4d4dfd8fe9edde58d5a5e2a82cd"
     },
     {
       "path": "electron/prompt-builders.cjs",
@@ -412,7 +412,7 @@
     {
       "path": "package.json",
       "size": 1693,
-      "sha256": "5b7ee1fb7dcaeb4d1b85d007e59612adf4ace2878303e3874d2d50ff6b3e7e7d"
+      "sha256": "e92b31ef8b82f9d464283d9e5637c85614c23df2880a194cdcd46fbc2be68dc7"
     },
     {
       "path": "tools/gen-update-config.cjs",
@@ -428,7 +428,12 @@
       "path": "tools/video-gateway.cjs",
       "size": 49481,
       "sha256": "3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"
+    },
+    {
+      "path": "tools/episode-concat.cjs",
+      "size": 9129,
+      "sha256": "c956bebdc1b924826c83da986dcf4424c53b58986cf0898bb867d50d70a0d4a3"
     }
   ],
-  "sig": "b4c8b17f8f461ccfa79492b420956015bb60597f168ef70b9f30fc1ae408ddfc"
+  "sig": "8c70f0abe99ffbfa80b770f01f32c046fe7208e0055b1b0ef1f28276cf5eb602"
 }
