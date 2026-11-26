@@ -869,21 +869,20 @@ function seedDescriptionsFromSiblings(job, siblings) {
 }
 
 /**
- * 【分镜兜底描述】1.0.24 —— 最后一道防线
+ * 【分镜兜底描述】1.0.24 起 / 1.0.27 增强
  *
- * 为什么要有：第12集实测暴露的新缺口。走「剧本修订 / 重写」链路时，AI 只回分镜、
- * 不回资产定义，前端按分镜里的 ( @scene_xxx ) 反查出中文名建行（1.0.22 的补名），
- * 描述天然是空。同作品补描述只能救「别集出现过的编号」，本集首次出现的新实体
- * 无处可借 —— 董家旧宅地基、村口水缸、绿叶鞋垫这类就是这么空的。
+ * 为什么要有：走「剧本修订 / 重写」链路时，AI 只回分镜、不回资产定义，
+ * 前端按分镜里的 ( @scene_xxx ) 反查出中文名建行（1.0.22 的补名），描述天然是空。
+ * 同作品补描述只能救「别集出现过的编号」，本集首次出现的新实体无处可借。
  *
- * 做法：从本集分镜提示词里抽取「包含该资产名的完整分句」，套成既有的
- * 「属性：值；属性：值」格式，开头标 [自动提取]，方便人工复核后改写。
+ * 1.0.27 修的两个坑（第四集实测）：
+ *   1) 提示词开头的【本组资产】清单行被整行跳过，如果某实体只出现在清单里
+ *      （场景几乎全是这样），就一句都抽不到 → 永远是空白；
+ *   2) 正文用的是简称（假发 / 破碗 / 铁链 / 垃圾场），跟资产全名不相等 → 匹配失败。
+ *   所以改成：全名 + 去量词 + 分段 + 词尾多级别名匹配，并把「出场镜头 / 同场实体 /
+ *   视觉基调」这类结构化事实一并写进去，保证不再留空。
  *
- * 边界（宁可不写，也不瞎写）：
- *   1. 只处理同作品补齐之后仍为空的行；
- *   2. 只认「本集分镜真的引用了这个编号」，不按名字猜；
- *   3. 至少 2 句、合计 24 字才落盘，抽不到就继续留空；
- *   4. 不覆盖任何已有描述，不碰图片。
+ * 边界：只处理空描述行；不覆盖任何已有描述；不碰图片；开头统一标 [自动提取]。
  */
 function deriveDescriptionsFromStoryboard(job) {
   const out = { filled: [] };
@@ -893,7 +892,7 @@ function deriveDescriptionsFromStoryboard(job) {
 
   const shots = [];
   walkShots(job.storyboard_json, (node) => {
-    if (!node || typeof node !== 'object') return;
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return;
     if (Array.isArray(node.scene_ids) || Array.isArray(node.prop_ids) || Array.isArray(node.role_ids)) shots.push(node);
   });
   if (!shots.length) return out;
@@ -905,10 +904,10 @@ function deriveDescriptionsFromStoryboard(job) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  /* 剥掉「图片提示词：」「本镜头场景：」「衔接上一镜头：」这类段落标签，留下正文 */
+  /* 剥掉「图片提示词：」「本镜头场景：」这类段落标签，留下正文 */
   const stripLabel = (s) => String(s || '').replace(/^(?:[^：:\n]{1,16}[：:])+/, '').trim();
 
-  /* 纯清单行（只罗列名字）剥完标签也只剩名字，没有描写价值 */
+  /* 纯清单行（只罗列名字）没有描写价值，但它的信息已经被结构化字段覆盖 */
   const LIST_ONLY = /^(本组资产|本镜头场景|本镜头道具|本镜头角色|角色|场景|道具)\s*[：:]/;
 
   const SHOT_WORDS = /全景|中景|近景|远景|特写/;
@@ -925,30 +924,126 @@ function deriveDescriptionsFromStoryboard(job) {
     return n;
   };
 
-  const harvest = (kind, id, name) => {
-    const idField = kind === 'role' ? 'role_ids' : kind === 'scene' ? 'scene_ids' : 'prop_ids';
-    const bare = bareAssetId(id);
-    const pool = [];
-    for (const shot of shots) {
-      const list = Array.isArray(shot[idField]) ? shot[idField] : [];
-      if (!list.some((x) => bareAssetId(x) === bare)) continue;
-      const text = String(shot.prompt || shot.content || '');
-      if (!text) continue;
-      for (const raw of text.split(/[。；\n]/)) {
-        if (LIST_ONLY.test(String(raw || '').trim())) continue;
-        const piece = clean(stripLabel(clean(raw)));
-        if (!piece || piece.length < 12 || piece.length > 110) continue;
-        if (!piece.includes(name)) continue;
-        if (/｜/.test(piece)) continue;
-        if (pool.includes(piece)) continue;
-        pool.push(piece);
+  /* 别名：全名 > 去量词 > 分段 > 词尾，解决「粉色蝴蝶结假发」正文只写「假发」 */
+  const STOP_ALIAS = new Set(['的', '和', '与', '之', '了']);
+  const aliasesOf = (name) => {
+    const list = [];
+    const push = (t, w) => {
+      const v = String(t || '').trim();
+      if (v.length < 2 || STOP_ALIAS.has(v)) return;
+      if (list.some((x) => x.t === v)) return;
+      list.push({ t: v, w });
+    };
+    push(name, 4);
+    const noCount = name.replace(/(\d+|[一二两三四五六七八九十几数]+)\s*(人|名|个|只|位)$/, '').trim();
+    if (noCount && noCount !== name) push(noCount, 4);
+    for (const seg of name.split(/[·・\-—–/、（）()\s]+/)) {
+      if (seg.length >= 3) {
+        push(seg, 3);
+        push(seg.slice(-3), 2);
+        push(seg.slice(-2), 1);
       }
     }
-    return pool
-      .map((s) => ({ s, n: scoreOf(s) }))
-      .sort((a, b) => b.n - a.n)
-      .slice(0, 2)
-      .map((x) => x.s);
+    if (name.length >= 3) { push(name.slice(-3), 2); push(name.slice(-2), 1); }
+    return list;
+  };
+
+  const idName = new Map();
+  for (const field of ['updated_roles', 'updated_scenes', 'updated_props']) {
+    for (const it of (Array.isArray(sj[field]) ? sj[field] : [])) {
+      const id = bareAssetId(it && (it.id || it.role_id || it.scene_id || it.prop_id)).toLowerCase();
+      const nm = String((it && it.name) || '').trim();
+      if (id && nm) idName.set(id, nm);
+    }
+  }
+  const nameOfId = (raw) => {
+    const bare = bareAssetId(raw);
+    return idName.get(bare.toLowerCase()) || idName.get(String(raw || '').replace(/^@/, '').toLowerCase()) || '';
+  };
+
+  const refIdx = (kind, id) => {
+    const idField = kind === 'role' ? 'role_ids' : kind === 'scene' ? 'scene_ids' : 'prop_ids';
+    const bare = bareAssetId(id);
+    const idx = [];
+    shots.forEach((s, i) => {
+      const list = Array.isArray(s[idField]) ? s[idField] : [];
+      if (list.some((x) => bareAssetId(x).toLowerCase() === bare.toLowerCase())) idx.push(i);
+    });
+    return idx;
+  };
+
+  const harvest = (kind, id, name) => {
+    const idx = refIdx(kind, id);
+    if (!idx.length) return { sentences: [], idx };
+    const aliases = aliasesOf(name);
+    const pool = [];
+    for (const i of idx) {
+      const shot = shots[i];
+      const text = String(shot.prompt || shot.visualPrompt || shot.visual_prompt || shot.content || '');
+      if (!text) continue;
+      for (const raw of text.split(/[。；\n]/)) {
+        const line = String(raw || '').trim();
+        if (!line || LIST_ONLY.test(line)) continue;
+        const piece = clean(stripLabel(clean(line)));
+        if (!piece || piece.length < 10 || piece.length > 110) continue;
+        if (/｜/.test(piece)) continue;
+        if (pool.some((x) => x.s === piece)) continue;
+        let w = 0;
+        for (const a of aliases) if (piece.includes(a.t)) w = Math.max(w, a.w);
+        if (!w) continue;
+        pool.push({ s: piece, n: scoreOf(piece) + w * 2, w });
+      }
+    }
+    const picked = pool.sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.s);
+    return { sentences: picked, idx };
+  };
+
+  /* 场景/道具还能从「视觉基调：」「材质：」这类段落里拿到有用信息 */
+  const extraLines = (kind, idx) => {
+    const re = kind === 'scene'
+      ? /^(视觉基调|画面基调|环境|光线|时间)\s*[：:]/
+      : kind === 'role' ? /^(造型|服装|发型|外观|神态)\s*[：:]/ : /^(材质|颜色|尺寸|外观|形态)\s*[：:]/;
+    const outLines = [];
+    for (const i of idx) {
+      const text = String(shots[i].prompt || shots[i].visualPrompt || shots[i].visual_prompt || '');
+      for (const raw of text.split(/[\n。；]/)) {
+        const line = String(raw || '').trim();
+        if (!re.test(line)) continue;
+        const body = clean(line.replace(/^[^：:]{1,8}[：:]/, ''));
+        if (body.length < 6 || outLines.includes(body)) continue;
+        if (outLines.some((x) => x.slice(0, 6) === body.slice(0, 6))) continue;
+        outLines.push(body);
+        if (outLines.length >= 2) return outLines;
+      }
+    }
+    return outLines;
+  };
+
+  const coField = (idx, field) => {
+    const set = [];
+    for (const i of idx) {
+      for (const raw of (Array.isArray(shots[i][field]) ? shots[i][field] : [])) {
+        const nm = nameOfId(raw);
+        if (!nm || set.includes(nm)) continue;
+        set.push(nm);
+      }
+    }
+    return set;
+  };
+
+  const rangeText = (idx) => {
+    const nums = idx.map((i) => i + 1).sort((a, b) => a - b);
+    if (!nums.length) return '';
+    const parts = [];
+    let start = nums[0];
+    let prev = nums[0];
+    for (let i = 1; i < nums.length; i++) {
+      if (nums[i] === prev + 1) { prev = nums[i]; continue; }
+      parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+      start = prev = nums[i];
+    }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+    return `第${parts.join('、')}镜（共${nums.length}镜）`;
   };
 
   const KINDS = [['role', 'updated_roles'], ['scene', 'updated_scenes'], ['prop', 'updated_props']];
@@ -962,18 +1057,42 @@ function deriveDescriptionsFromStoryboard(job) {
       const id = it.id || it[`${kind}_id`] || it.tokenId || it.token_id;
       const name = String(it.name || '').trim();
       if (!id || !name) return it;
-      const hits = harvest(kind, id, name);
-      if (!hits.length || hits.join('').length < 24) return it;
-      const body = hits.join('；');
-      const head = kind === 'role' ? `姓名：${name}；本集表现：`
-        : kind === 'scene' ? `地点：${name}；本集画面：`
-          : `名称：${name}；本集画面与状态：`;
+
+      const { sentences, idx } = harvest(kind, id, name);
+      if (!idx.length) return it;              /* 本集根本没引用，不瞎写 */
+      const where = rangeText(idx);
+      const coRoles = coField(idx, 'role_ids').filter((x) => x !== name);
+      const coScenes = coField(idx, 'scene_ids').filter((x) => x !== name);
+      const coProps = coField(idx, 'prop_ids').filter((x) => x !== name);
+      const extra = extraLines(kind, idx);
+
+      const facts = [];
+      facts.push(`本集出场：${where}`);
+      if (kind === 'scene') {
+        if (coRoles.length) facts.push(`同场角色：${coRoles.slice(0, 4).join('、')}`);
+        if (coProps.length) facts.push(`场中道具：${coProps.slice(0, 3).join('、')}`);
+      } else if (kind === 'role') {
+        const same = [...coRoles.slice(0, 3), ...coScenes.slice(0, 1)];
+        if (same.length) facts.push(`同场：${same.join('、')}`);
+      } else {
+        if (coRoles.length) facts.push(`同场角色：${coRoles.slice(0, 3).join('、')}`);
+        if (coScenes.length) facts.push(`所在场景：${coScenes.slice(0, 2).join('、')}`);
+      }
+      if (extra.length) facts.push(`${kind === 'scene' ? '视觉基调' : kind === 'role' ? '造型' : '形态'}：${extra.join('；')}`);
+      if (sentences.length) facts.push(`本集画面：${sentences.join('；')}`);
+
+      const head = kind === 'role' ? `姓名：${name}；`
+        : kind === 'scene' ? `地点：${name}；`
+          : `名称：${name}；`;
       const tail = kind === 'role' ? '；年龄、身高、体型、面部、发型、服装：未提供，待统一设定'
         : kind === 'scene' ? '；空间、材质与光影细节：未提供，待统一设定'
           : '；尺寸、材质与颜色：未提供，待统一设定';
+
+      let desc = `[自动提取]${head}${facts.join('；')}${tail}`;
+      if (desc.length > 240) desc = `${desc.slice(0, 236)}…${tail}`;
       touched = true;
       out.filled.push(`${kind}:${name}`);
-      return { ...it, description: `[自动提取]${head}${body}${tail}` };
+      return { ...it, description: desc };
     });
     if (touched) {
       sj[field] = next;

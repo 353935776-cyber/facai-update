@@ -1133,6 +1133,54 @@ async function revealInFolder(arg) {
   }
 }
 handle('asset:revealInFolder', (arg) => revealInFolder(arg));
+
+/* ---------- 剪映：草稿目录探测 + 整集按序合成 ----------
+ * 剪映 6.0 起 draft_content.json 是加密的，第三方写的明文草稿 8.x 根本不认，
+ * 所以「导出草稿」在新版剪映里等于没写。真正稳的交付物是：按分镜顺序把整集拼成一个 mp4，
+ * 进剪映只导这一个文件，顺序天然正确，也不会随剪映升级失效。
+ */
+function detectJianyingDraftRoot() {
+  const cands = [
+    path.join(process.env.LOCALAPPDATA || '', 'JianyingPro', 'User Data', 'Config', 'globalSetting'),
+    path.join(process.env.APPDATA || '', 'JianyingPro', 'User Data', 'Config', 'globalSetting'),
+  ];
+  for (const f of cands) {
+    try {
+      const txt = fs.readFileSync(f, 'utf8');
+      const m = txt.match(/^currentCustomDraftPath=(.+)$/m);
+      if (m && m[1].trim()) return m[1].trim().replace(/\\\\/g, '\\');
+    } catch { /* 没装剪映或读不到，走前端配置 */ }
+  }
+  return '';
+}
+
+handle('jianying:resolveDraftRoot', () => ({
+  success: true,
+  data: { platform: process.platform, path: detectJianyingDraftRoot() },
+}));
+
+handle('jianying:buildEpisodeMp4', async (arg = {}) => {
+  const draftDir = String((arg && arg.draftDir) || '').trim();
+  if (!draftDir) return { success: false, message: '缺少草稿目录' };
+  if (!fs.existsSync(draftDir)) return { success: false, message: '草稿目录不存在：' + draftDir };
+  const { concat } = require(path.join(__dirname, '..', 'tools', 'episode-concat.cjs'));
+  const r = await concat(draftDir, (arg && arg.out) || '', String((arg && arg.name) || path.basename(draftDir)));
+  log('[jianying] 整集合成', r.count, '镜', r.mode, `${r.duration}s`, r.sizeMb + 'MB', r.out);
+  return {
+    success: true,
+    data: {
+      path: r.out,
+      count: r.count,
+      mode: r.mode,
+      mixed: r.mixed,
+      seconds: r.seconds,
+      duration: r.duration,
+      sizeMb: r.sizeMb,
+    },
+  };
+});
+
+handle('jianying:revealPath', (p) => revealInFolder(p));
 /* asset.download({url,kind,entityId}) → {success,data:{filePath}}；importLocal({sourcePath,...}) 同理 */
 function assetDir(kind, entityId) {
   const safe = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, '_').replace(/^\.+/, '') || 'misc';

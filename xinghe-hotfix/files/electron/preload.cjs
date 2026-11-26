@@ -50,6 +50,12 @@ const electronAPI = {
   jimeng: {
     cancelVideo: invoke('jimeng:cancelVideo'),
   },
+  // 剪映：探测剪映真实草稿目录 + 把整集按分镜顺序拼成 mp4（8.x 只认自家加密草稿）
+  jianying: {
+    resolveDraftRoot: invoke('jianying:resolveDraftRoot'),
+    buildEpisodeMp4: invoke('jianying:buildEpisodeMp4'),
+    revealPath: invoke('jianying:revealPath'),
+  },
   chatroom: {
     loadStore: invoke('chatroom:loadStore'),
     saveStore: invoke('chatroom:saveStore'),
