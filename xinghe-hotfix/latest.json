@@ -1,7 +1,7 @@
 {
-  "version": "1.0.27",
-  "notes": "1.0.27：修复「场景/道具/角色描述空白」——仅出现在【本组资产】清单行、正文只用简称的实体改为别名匹配（全名/去量词/分段/词尾），并补充「本集出场镜头、同场角色、所在场景、视觉基调」等结构化事实；同时包含 1.0.26 的剪映整集合成：剪映 6.0+ 草稿已加密、第三方明文草稿无法识别，改为导出分镜后自动按镜头顺序合成整集 MP4（参数一致无损直拼，不一致自动统一转码），成片落在剪映草稿根目录，可直接拖入剪映精修",
-  "pubDate": "2026-11-26T10:07:38.261Z",
+  "version": "1.0.29",
+  "notes": "1.0.29：豆包次数口径对齐真实额度——① doubao-seedance-2-0-fast 每个账号每天免费 2 次、mini 5 次，工作台顶部说明改成真实额度；② 新增账号 / 编辑账号 / 批量改次数的默认每日限额由 5 改为 2；③ 老账号没填每日限额时按 2 次算，不会当成无限次数一直生成；④ 失败/取消也计入已用：豆包是「提交即扣」，以前助手失败会回退次数，界面看着没扣、实际额度已经没了，现在网关会把这一次补回去；⑤ 账号列表的「今日 x/y」每 6 秒自动刷新，不用再手点「刷新」；⑥ 账号只是在冷却时不再误报「次数用完」；⑦ 含 1.0.28 修复：每日 0 点自动清零、额度用完的账号当天自动拉黑（徽标「次数用完」）",
+  "pubDate": "2026-11-26T11:54:15.942Z",
   "fileBase": "files/",
   "files": [
     {
@@ -46,13 +46,13 @@
     },
     {
       "path": "app/assets/DoubaoWorkbenchView-DaTSxDZR.js",
-      "size": 27170,
-      "sha256": "63b6c5046d4652d9644546ef58cd87740d4cf131fb889954ca94463ff8c99b6f"
+      "size": 28520,
+      "sha256": "e2d9d35d73590369d8ad196ff8fb35f83932338db6f4385c23f298f57c44b289"
     },
     {
       "path": "app/assets/DoubaoWorkbenchView-nmkGv5Kf.css",
-      "size": 14672,
-      "sha256": "ee9fd36667814d7d4effc304f350b99c31b830ad64528a15b0442e9e43478f5f"
+      "size": 14751,
+      "sha256": "32213679faac1758010e2f52b83c1e3a097ae2504cbeb7a1acd403ee37ed5217"
     },
     {
       "path": "app/assets/EpisodeListView-ByxoZ2xy.js",
@@ -412,7 +412,7 @@
     {
       "path": "package.json",
       "size": 1693,
-      "sha256": "e92b31ef8b82f9d464283d9e5637c85614c23df2880a194cdcd46fbc2be68dc7"
+      "sha256": "42d468ea52096bf6946ba5a865b9e5e040121c2a66958c908c6b3e9a077d17ac"
     },
     {
       "path": "tools/gen-update-config.cjs",
@@ -426,8 +426,8 @@
     },
     {
       "path": "tools/video-gateway.cjs",
-      "size": 49481,
-      "sha256": "3600043eb1065a08215eb7911647b469b95f3beceea281f1d8ed078344ecd17e"
+      "size": 59741,
+      "sha256": "b28c39efd1c5fccd5c5a70bdb7dd100096b603b5b77448f9e124117dc5b2e8ca"
     },
     {
       "path": "tools/episode-concat.cjs",
@@ -435,5 +435,5 @@
       "sha256": "c956bebdc1b924826c83da986dcf4424c53b58986cf0898bb867d50d70a0d4a3"
     }
   ],
-  "sig": "8c70f0abe99ffbfa80b770f01f32c046fe7208e0055b1b0ef1f28276cf5eb602"
+  "sig": "d6c53fae300efe3032610b9aa566f79cdbfcb14fe116cdc10169f53e33faa94b"
 }
