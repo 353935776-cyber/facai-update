@@ -123,7 +123,7 @@ async function helperCandidates() {
     if (st && st !== 'active') return false;
     if (Number(a.cooldownUntil ?? a.cooldown_until ?? 0) > now) return false;
     const used = Number(a.dailyUsed ?? a.daily_used ?? a.usedCount ?? a.used_count ?? 0);
-    const limit = Number(a.dailyLimit ?? a.daily_limit ?? a.totalLimit ?? a.total_limit ?? 5);
+    const limit = Number(a.dailyLimit ?? a.daily_limit ?? a.totalLimit ?? a.total_limit ?? 2);
     return !(limit > 0 && used >= limit);
   });
   if (!usable.length) throw new Error('没有可用豆包账号（额度用尽或全部冷却中）');
@@ -234,6 +234,8 @@ function errorLine(raw) {
 
 function friendlyError(raw) {
   const s = errorLine(raw) || '豆包任务失败';
+  /* 网关自己拼的账号池提示（冷却 / 额度用完 / 额度不足）已经是人话，别再被下面的关键词改写 */
+  if (/^豆包账号(暂时都在冷却|今天的次数都用完了|可用额度不足)/.test(s)) return s;
   if (/quota|额度|免费次数|次数用完|次数已用完/i.test(s)) return '豆包账号今日免费次数已用完，请换一个账号或明天再试。';
   if (/未登录|login|登录态/i.test(s)) return '豆包账号未登录：请在「豆包插件」页点「打开豆包」登录后重试。';
   if (/正在执行其他任务|busy|locked/i.test(s)) return '该豆包账号正在跑别的任务，请稍后再试。';
@@ -276,6 +278,8 @@ function cancelTask(task, reason) {
   task.status = 'failed';
   task.error = '已取消生成';
   log('取消任务', task.id, reason || '', task.helperId || '(尚未提交到助手)');
+  /* 已经在豆包那边跑起来的单子，取消也算用掉一次免费额度，界面数字要跟着走 */
+  if (quotaConsumed(task, '')) bumpUsageOnce(task, '用户取消').catch(() => {});
   if (task.helperId) {
     helperCall(`/tasks/${encodeURIComponent(task.helperId)}/cancel`, 'POST', {}, 8000)
       .then((j) => log('助手已取消', task.helperId, JSON.stringify(j || {}).slice(0, 120)))
@@ -463,6 +467,7 @@ async function pollHelper(task) {
       task.rawError = raw;
       task.error = friendlyError(raw);
       log('助手任务失败', task.helperId, raw.slice(0, 180));
+      if (quotaConsumed(task, raw)) await bumpUsageOnce(task, '任务失败');
       return;
     }
     if (st === 'cancelled' || st === 'canceled') {
@@ -473,6 +478,7 @@ async function pollHelper(task) {
       }
       task.status = 'failed';
       task.error = '任务被取消';
+      if (quotaConsumed(task, '')) await bumpUsageOnce(task, '助手取消');
       return;
     }
 
@@ -509,6 +515,7 @@ async function pollHelper(task) {
       if (saveFails >= 3) {
         task.status = 'failed';
         task.error = String((e && e.message) || e);
+        await bumpUsageOnce(task, '成片取回失败');
         return;
       }
       await new Promise((r) => setTimeout(r, 8000));
@@ -518,6 +525,7 @@ async function pollHelper(task) {
     task.status = 'failed';
     task.error = '豆包出片超时（' + Math.round((Number(task.resultTimeoutMs) || DEFAULT_RESULT_TIMEOUT_MS) / 60000) + ' 分钟）';
     startReap(task, '超时后兜底补抓');
+    await bumpUsageOnce(task, '出片超时');
   }
 }
 
@@ -608,7 +616,104 @@ const accountHolders = new Map();   // accountId -> taskId（谁占着这个账�
 const accountSkipUntil = new Map(); // accountId -> 时间戳（助手明确报次数用完/未登录时先避开）
 
 function numOf(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+/* 豆包真实免费额度：doubao-seedance-2-0-fast 每个账号每天 2 次。
+ * 账号里 daily_limit 没填（老账号/助手别的入口建的号）时按 2 算，别再当成无限次数一直派单。 */
+const DEFAULT_DAILY_LIMIT = 2;
+function dailyLimitOf(a) {
+  const n = numOf(a && (a.dailyLimit ?? a.daily_limit ?? a.totalLimit ?? a.total_limit));
+  return n > 0 ? n : DEFAULT_DAILY_LIMIT;
+}
+
+/* 豆包是「提交即扣」：只要提示词真的交给了豆包，后面页面跳转、取片失败、用户取消，
+ * 那一次免费额度都已经消耗掉了。但助手自己的规则是「提交 +1、失败 -1 回退」，
+ * 于是失败的单子在界面上看不出扣过，账号看着还有次数 → 继续派单 → 撞「免费额度已用完」。
+ * 所以在失败/取消时把这一次补回去，让界面数字跟豆包真实剩余一致。
+ * 只补「确实提交到豆包」的：未登录、找不到视频入口这类在提交前就挂掉的不补。 */
+const PRE_SUBMIT_ERROR = /未登录|登录态|login|找不到视频|视频\s*tab|tab 未就绪|create-image|正在执行其他任务|\bbusy\b|\blocked\b|任务不存在|not_found|参考图.*(失败|上传)|上传.*失败|没有可用豆包账号|还没有账号/i;
+function quotaConsumed(task, raw) {
+  if (!task) return false;
+  if (task.remoteTaskId) return true;
+  const s = String(raw || '');
+  if (PRE_SUBMIT_ERROR.test(s)) return false;
+  if (/页面跳转打断|未解析到豆包对话|CDP|WebSocket|chrome exit|超时|取消|取回失败/i.test(s)) return true;
+  const born = Number(task.createdAt || 0);
+  return born > 0 && Date.now() - born > 8000;
+}
+
+async function bumpUsageOnce(task, reason) {
+  const id = String((task && task.accountId) || '');
+  if (!id) return;
+  if (!task.usageBumped) task.usageBumped = {};
+  if (task.usageBumped[id]) return;
+  task.usageBumped[id] = 1;
+  /* 额度用完那单已经由 pushAccountToLimit 顶到上限，这里再加就成了 3/2 这种怪数字 */
+  if (/quota|额度|次数/i.test(String(task.rawError || task.error || ''))) return;
+  await new Promise((r) => setTimeout(r, 1500)); // 等助手的「失败回退」先落库，再补
+  try {
+    const list = await helperAccountList();
+    const a = list.find((x) => accountIdOf(x) === id);
+    if (!a) return;
+    const base = Math.max(numOf(a.dailyUsed ?? a.daily_used), numOf(a.usedCount ?? a.used_count));
+    const lim = dailyLimitOf(a);
+    const used = base >= lim ? base : base + 1;
+    if (used === base) return;
+    await helperCall(`/accounts/${encodeURIComponent(id)}`, 'PATCH', {
+      name: String(a.name || ''),
+      usedCount: used,
+      dailyUsed: used,
+    }, 8000);
+    log(`账号「${a.name || id}」补记 1 次已用（${reason}）→ 今日 ${used}/${lim}`);
+  } catch (e) {
+    log('补记次数失败', id, String((e && e.message) || e).slice(0, 80));
+  }
+}
 function accountIdOf(a) { return String((a && (a.id || a.accountId)) || ''); }
+
+/* ------------- 额度用尽 / 每日清零（助手自己不做这两件事） -------------
+ * 实测（tools/doubao-helper）：助手的 `daily_used` 只有点「重置次数」才会归零，
+ * 日期变了不会自动清零；豆包提示「免费额度已用完」时也只把错误写进任务，
+ * 不会把账号置为停用/冷却。结果就是：
+ *   · 界面上「每日 1/2」其实是「自上次手动重置以来 1 次」，跟当天没关系；
+ *   · 次数早用完的账号照样显示「可用」，网关 10 分钟后还会拿它去撞一次。
+ * 这里补两件事（都在网关进程里，随主程序起停）：
+ *   1) 命中额度类错误 → 该账号记到本地文件、跳过到今天 00:05（网关重启也算数），
+ *      并把助手的每日计数顶到上限，界面上显示 x/x，不再被当成"还有次数"；
+ *   2) 每天 0 点后第一次心跳 → 把所有账号的每日计数清零。
+ */
+const QUOTA_FILE = path.join(path.dirname(CONFIG_FILE), 'video-gateway-quota.json');
+const DAILY_FILE = path.join(path.dirname(CONFIG_FILE), 'video-gateway-daily.json');
+
+function readJsonFile(p, dflt) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')) || dflt; } catch { return dflt; }
+}
+function writeJsonFile(p, v) {
+  try { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, JSON.stringify(v)); } catch { /* ignore */ }
+}
+/* 次日 00:05：豆包的免费额度按自然日恢复，留 5 分钟余量避免卡在边界 */
+function nextResetTs() {
+  const d = new Date();
+  d.setHours(24, 5, 0, 0);
+  return d.getTime();
+}
+function isQuotaMessage(s) {
+  return /quota|额度|免费次数|次数已用完|次数用完|次数不足|免费额度/i.test(String(s || ''));
+}
+
+const quotaExhausted = (() => {
+  const raw = readJsonFile(QUOTA_FILE, {});
+  const now = Date.now();
+  const out = {};
+  for (const [k, v] of Object.entries(raw || {})) if (numOf(v) > now) out[k] = numOf(v);
+  return out;
+})();
+
+function markQuotaExhausted(accountId) {
+  const until = nextResetTs();
+  quotaExhausted[accountId] = until;
+  writeJsonFile(QUOTA_FILE, quotaExhausted);
+  accountSkipUntil.set(accountId, until);
+  return until;
+}
 
 function accountUsable(a) {
   if (!a) return false;
@@ -617,11 +722,85 @@ function accountUsable(a) {
   const st = String(a.status || 'active').toLowerCase();
   if (st && st !== 'active') return false;
   if (numOf(a.cooldownUntil ?? a.cooldown_until) > Date.now()) return false;
+  /* 当天已经撞过「额度用完」→ 直接跳过，别再拿它去浪费一次 */
+  if (numOf(quotaExhausted[id]) > Date.now()) return false;
   const used = numOf(a.dailyUsed ?? a.daily_used ?? a.usedCount ?? a.used_count);
-  const limit = numOf(a.dailyLimit ?? a.daily_limit ?? a.totalLimit ?? a.total_limit);
+  const limit = dailyLimitOf(a);
   if (limit > 0 && used >= limit) return false;
   if (numOf(accountSkipUntil.get(id)) > Date.now()) return false;
   return true;
+}
+
+/* 把助手里这个账号的每日计数顶到上限：界面显示 x/x，其它调用方也不会再拿它去跑 */
+async function pushAccountToLimit(accountId) {
+  try {
+    const list = await helperAccountList();
+    const a = list.find((x) => accountIdOf(x) === accountId);
+    if (!a) return;
+    const limit = dailyLimitOf(a);
+    const used = Math.max(
+      numOf(a.dailyUsed ?? a.daily_used),
+      numOf(a.usedCount ?? a.used_count),
+      limit > 0 ? limit : 1,
+    );
+    await helperCall(`/accounts/${encodeURIComponent(accountId)}`, 'PATCH', {
+      name: String(a.name || ''),
+      usedCount: used,
+      dailyUsed: used,
+    }, 8000);
+    log(`账号「${a.name || accountId}」每日计数顶到 ${used}（界面显示已用完）`);
+  } catch (e) {
+    log('标记账号额度用尽失败', accountId, String((e && e.message) || e).slice(0, 90));
+  }
+}
+
+function todayKey() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+let dailyResetBusy = false;
+async function dailyResetIfNeeded() {
+  if (dailyResetBusy) return;
+  const key = todayKey();
+  const st = readJsonFile(DAILY_FILE, null);
+  /* 第一次装上新版：只登记今天，不把当天已经用掉的次数抹掉（否则界面又变成 0/2「可用」，
+   * 反而更容易拿已经没额度的号去撞）。从明天 0 点起才是真正的每日清零。 */
+  if (!st) {
+    writeJsonFile(DAILY_FILE, { date: key, at: Date.now(), reset: 0, note: '首次初始化，不重置当天计数' });
+    log(`每日清零已就绪（首次初始化 ${key}，明天 0 点起生效）`);
+    return;
+  }
+  if (String(st.date || '') === key) return;
+  dailyResetBusy = true;
+  try {
+    const list = await helperAccountList();
+    let n = 0;
+    for (const a of list) {
+      const id = accountIdOf(a);
+      if (!id) continue;
+      const used = numOf(a.dailyUsed ?? a.daily_used);
+      const total = numOf(a.usedCount ?? a.used_count);
+      if (!used && !total) continue;
+      try {
+        await helperCall(`/accounts/${encodeURIComponent(id)}`, 'PATCH', {
+          name: String(a.name || ''),
+          usedCount: 0,
+          dailyUsed: 0,
+        }, 8000);
+        n += 1;
+      } catch (e) {
+        log('每日清零失败', String(a.name || id), String((e && e.message) || e).slice(0, 80));
+      }
+    }
+    writeJsonFile(DAILY_FILE, { date: key, at: Date.now(), reset: n });
+    if (n) log(`每日次数已自动清零（${n} 个账号）→ ${key}`);
+  } catch (e) {
+    log('每日清零跳过', String((e && e.message) || e).slice(0, 80));
+  } finally {
+    dailyResetBusy = false;
+  }
 }
 
 async function helperAccountList() {
@@ -643,11 +822,28 @@ async function reserveAccount(task) {
     if (!list.length) throw new Error('豆包助手还没有账号，请先在「豆包插件」页添加并登录豆包账号。');
     const usable = list.filter(accountUsable);
     if (!usable.length) {
-      const limits = list.map((a) => numOf(a.dailyLimit ?? a.daily_limit)).filter((n) => n > 0);
+      const limits = list.map(dailyLimitOf);
       const total = limits.length ? limits.reduce((s, n) => s + n, 0) : 0;
       const used = list.reduce((s, a) => s + numOf(a.dailyUsed ?? a.daily_used), 0);
-      const e = new Error(`豆包账号今天的次数都用完了（${list.length} 个账号，今日共 ${total || '?'} 次，已用 ${used} 次）。`
-        + '请在「豆包插件」页添加账号 / 重置次数 / 调高每日次数后再点生成。');
+      const isExhausted = (a) => {
+        const l = dailyLimitOf(a);
+        return l > 0 && numOf(a.dailyUsed ?? a.daily_used ?? a.usedCount ?? a.used_count) >= l;
+      };
+      const exhausted = list.filter(isExhausted).length;
+      const cooling = list.length - exhausted;
+      let msg;
+      if (!exhausted) {
+        /* 一条都没跑成，但账号只是刚失败/刚撞额度在冷却，别说成「次数用完」 */
+        msg = `豆包账号暂时都在冷却（${list.length} 个，刚失败或刚用完额度），几分钟后自动恢复；`
+          + '也可以先在「豆包插件」页点「重置次数」再试。';
+      } else if (!cooling) {
+        msg = `豆包账号今天的次数都用完了（${exhausted} 个账号，今日共 ${total || '?'} 次，已用 ${used} 次）。`
+          + '请在「豆包插件」页添加账号 / 重置次数 / 调高每日次数后再点生成。';
+      } else {
+        msg = `豆包账号可用额度不足（${exhausted} 个已用完、${cooling} 个在冷却，今日共 ${total || '?'} 次，已用 ${used} 次）。`
+          + '请稍等几分钟，或在「豆包插件」页添加账号 / 重置次数后再试。';
+      }
+      const e = new Error(msg);
       e.fatal = true; // 换账号也没用，别再重试
       throw e;
     }
@@ -700,6 +896,14 @@ function markAccountProblem(accountId, task, raw) {
   /* 「这个账号正被别的任务占着」不算账号坏，只是这次错开了，下次照样能用 */
   if (/正在执行其他任务|账号.*忙|busy|locked/i.test(s) && !/次数|额度|quota/i.test(s)) {
     log(`账号「${task.accountName || accountId}」正被别的任务占着，换一个`, task.id);
+    return;
+  }
+  /* 额度用完：不是「歇 10 分钟」的事，豆包当天不会再给额度 → 拉黑到次日 00:05 */
+  if (isQuotaMessage(s)) {
+    const until = markQuotaExhausted(accountId);
+    log(`账号「${task.accountName || accountId}」今日额度用完，本日不再使用（${new Date(until).toLocaleString('zh-CN')} 自动恢复）`,
+      task.id, s.slice(0, 60));
+    pushAccountToLimit(accountId).catch(() => { /* ignore */ });
     return;
   }
   accountSkipUntil.set(accountId, Date.now() + 10 * 60 * 1000);
@@ -1019,4 +1223,7 @@ server.listen(PORT, '127.0.0.1', () => {
   log(`本地视频网关已启动 http://127.0.0.1:${PORT}  mode=${MODE}`);
   log('ffmpeg =', FFMPEG || '(未找到，mock 模式不可用)');
   log('输出目录 =', OUT_DIR);
+  /* 次日 00:05 起把助手的每日计数清零；助手自己不做，不做的话「每日次数」永远不归零 */
+  setTimeout(() => { dailyResetIfNeeded().catch(() => { /* ignore */ }); }, 4000);
+  setInterval(() => { dailyResetIfNeeded().catch(() => { /* ignore */ }); }, 5 * 60 * 1000);
 });
